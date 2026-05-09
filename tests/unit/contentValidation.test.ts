@@ -4,6 +4,7 @@ import { validateContentRegistry } from '@/data/validation';
 import {
   buildContentValidationReport,
   getContentSchemaFiles,
+  validateAuthoredContentAgainstSchemas,
 } from '@/tools/contentValidationReport';
 
 describe('content validation', () => {
@@ -86,5 +87,23 @@ describe('content validation', () => {
 
     expect(report.ok).toBe(true);
     expect(report.summary.schemas).toBe(getContentSchemaFiles().length);
+  });
+
+  it('validates authored content objects against their schema mirrors', () => {
+    const content = createContentRegistry();
+    const ship = content.ships.get('veilrunner_proto');
+    if (!ship) {
+      throw new Error('Missing starter ship');
+    }
+
+    const schemaDriftShip = ship as typeof ship & { unsupportedDebugOnlyField?: boolean };
+    schemaDriftShip.unsupportedDebugOnlyField = true;
+
+    const issues = validateAuthoredContentAgainstSchemas(content);
+
+    expect(issues.some((issue) => issue.path.endsWith('unsupportedDebugOnlyField'))).toBe(true);
+    expect(issues.some((issue) => issue.message.includes('ship-definition.schema.json'))).toBe(
+      true,
+    );
   });
 });

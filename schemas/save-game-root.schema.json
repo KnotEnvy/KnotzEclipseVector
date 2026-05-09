@@ -107,7 +107,7 @@
         "qualityTier": { "enum": ["low", "recommended", "ultra"] },
         "reducedMotion": { "type": "boolean" },
         "masterVolume": { "type": "number", "minimum": 0, "maximum": 1 },
-        "controlsProfileId": { "$ref": "#/$defs/stableId" }
+        "controlsProfileId": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
     },

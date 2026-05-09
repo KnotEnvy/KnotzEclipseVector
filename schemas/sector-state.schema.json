@@ -16,7 +16,7 @@
   "properties": {
     "sectorId": { "$ref": "#/$defs/stableId" },
     "control": {
-      "oneOf": [{ "const": "contested" }, { "$ref": "#/$defs/stableId" }]
+      "anyOf": [{ "const": "contested" }, { "$ref": "#/$defs/stableId" }]
     },
     "security": { "type": "number" },
     "civilianStability": { "type": "number" },

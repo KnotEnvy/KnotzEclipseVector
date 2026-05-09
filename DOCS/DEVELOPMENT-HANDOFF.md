@@ -37,13 +37,14 @@ The project is now a browser-runnable TypeScript game foundation using Vite and 
 - DOM HUD layered over a Pixi playfield.
 - Starter content registry with boot-time validation.
 - Dedicated content validation CLI exposed through `npm run validate:content`.
+- Content validation now compiles the authored JSON Schema mirrors with Ajv 8 and validates starter missions, ships, weapons, status effects, factions, sectors, and the current initial save shell against those schemas.
 - Event contract fixtures for high-value gameplay and narrative events.
 - Save migration harness with a v0 legacy fixture and current-root hydration tests.
 - First authored combat status path: `pulse_lance_mk1` applies `ionized`, which emits `combat.status_applied` and ticks shield pressure over time.
 - One event-driven placeholder VFX response for enemy destruction.
 - Machine-readable JSON schema mirrors now exist for missions, player ships, weapons, status effects, faction state, sector state, and save roots.
 - Runtime content validation now covers ship tuning, weapon tuning, status effect timing/stacking basics, faction and sector registry identity, sector control references, encounter coordinates, reward values, and consequence deltas.
-- The content validation CLI reports registry counts, parses all authored schema mirrors, and exits nonzero on schema or cross-reference drift.
+- The content validation CLI reports registry counts and exits nonzero on schema, shape, or cross-reference drift.
 
 ## Playable Slice
 
@@ -72,7 +73,7 @@ Controls:
 - Starter content is cloned into registries before use so tests and runtime mutations do not poison shared source data.
 - Content validation catches common drift such as invalid IDs, invalid semver, missing weapon/status references, invalid numeric tuning, malformed objectives, broken registry keys, and unknown sector/faction references.
 - Weapon status references are validated against authored status definitions.
-- Authored JSON schemas are kept parseable by the content validation CLI and test suite, but full schema-driven object validation is not yet wired in.
+- Authored JSON schemas are compiled with the draft 2020-12 Ajv path and applied to starter content objects during content validation.
 
 ## Important Files
 
@@ -86,6 +87,7 @@ Controls:
 - `src/data/missions.ts`: current starter mission content.
 - `src/data/validation.ts`: starter content validator.
 - `src/tools/contentValidationReport.ts`: shared content validation report builder for tests and CLI output.
+- `src/tools/jsonSchemaValidator.ts`: Ajv-backed JSON Schema validation wrapper for content/schema drift checks.
 - `src/tools/contentValidationCli.ts` and `scripts/validate-content.mjs`: dedicated content validation command path.
 - `schemas/*.schema.json`: machine-readable mirrors for mission, ship, weapon, status effect, faction, sector, and save root contracts.
 - `fixtures/events/*.json`: event contract fixtures.
@@ -111,7 +113,7 @@ Current known gate result from the latest implementation pass:
 - `npm run lint`: passing
 - `npm run format`: passing
 - `npm run validate:content`: passing
-- `npm test`: passing, 7 files and 14 tests
+- `npm test`: passing, 7 files and 15 tests
 - `npm run build`: passing
 
 Build caveat: Vite currently warns that the main JS chunk is just over 500 kB after minification. The latest observed build reported about 511.99 kB. This is mostly expected from PixiJS at this early stage, but renderer/app code-splitting should be addressed before content and presentation scale up.
@@ -121,19 +123,19 @@ Build caveat: Vite currently warns that the main JS chunk is just over 500 kB af
 - IndexedDB is not implemented yet. The current save adapter uses localStorage behind a replaceable storage interface.
 - Save migration discipline has started, but there is only one legacy fixture. Any persistent shape change needs a new before/after fixture pair.
 - Content schemas cover the existing runtime contracts, but there is no dialogue node contract or schema yet.
-- Schema files are currently guarded by parse checks and parallel hand-written runtime checks. Full JSON-schema validation against authored objects is still needed before larger content packs land.
+- Some schema sections are still intentionally permissive, especially consequence bundles, encounter details, and nested save-world faction/sector maps. The Ajv pass now validates the schemas as written, but schema coverage should tighten before larger content packs land.
 - Combat is still in one implementation file. It should be split into movement, weapons, projectiles, damage, lifecycle, and status systems before adding more mechanics.
 - Status effects are functional but minimal. `ionized` currently demonstrates application, event emission, duration, and shield pressure; it is not yet a full general-purpose buff/debuff engine.
 - VFX is intentionally placeholder-level. The renderer has an event-driven explosion ring, not the final pooled particle/VFX architecture.
 - No Playwright browser smoke test exists yet.
 - No debug overlay exists yet for events, simulation stats, save state, or content validation reports.
 - The Git workspace may require `safe.directory` handling in this environment because Git previously reported an ownership warning.
-- `npm install` reported moderate dependency audit findings. Do not run breaking audit fixes casually; evaluate dependency upgrades deliberately.
+- `npm install` reported 6 moderate dependency audit findings. Do not run breaking audit fixes casually; evaluate dependency upgrades deliberately.
 
 ## Current Next 10 Tasks
 
 1. Add a dialogue node contract and schema once the first authored dialogue surface is ready.
-2. Add full JSON-schema validation against authored content objects inside the dedicated content validation CLI.
+2. Tighten the remaining permissive schema sections for consequence bundles, encounter sequence entries, and nested save-world faction/sector maps.
 3. Implement an IndexedDB save adapter while preserving the current save service contract and migration entry point.
 4. Split `combatSimulation.ts` into movement, weapon, projectile, damage, lifecycle, and status modules with focused tests.
 5. Expand status effects into a general system with stacking policy tests, expiry events, and UI-facing status summaries.
