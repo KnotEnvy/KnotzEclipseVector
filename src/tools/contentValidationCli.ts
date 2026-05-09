@@ -17,6 +17,7 @@ export async function runContentValidationCli(argv = process.argv.slice(2)): Pro
         `ships=${report.summary.ships}`,
         `weapons=${report.summary.weapons}`,
         `statusEffects=${report.summary.statusEffects}`,
+        `dialogueNodes=${report.summary.dialogueNodes}`,
         `factions=${report.summary.factions}`,
         `sectors=${report.summary.sectors}`,
         `schemas=${report.summary.schemas}`,

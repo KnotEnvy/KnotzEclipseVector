@@ -11,6 +11,7 @@ const SCHEMA_FILES = [
   'ship-definition.schema.json',
   'weapon-definition.schema.json',
   'status-effect-definition.schema.json',
+  'dialogue-node.schema.json',
   'faction-state.schema.json',
   'sector-state.schema.json',
   'save-game-root.schema.json',
@@ -23,6 +24,7 @@ export type ContentValidationReport = {
     ships: number;
     weapons: number;
     statusEffects: number;
+    dialogueNodes: number;
     factions: number;
     sectors: number;
     schemas: number;
@@ -43,6 +45,7 @@ export function buildContentValidationReport(rootDir = process.cwd()): ContentVa
       ships: content.ships.size,
       weapons: content.weapons.size,
       statusEffects: content.statusEffects.size,
+      dialogueNodes: content.dialogueNodes.size,
       factions: Object.keys(content.factions).length,
       sectors: Object.keys(content.sectors).length,
       schemas: SCHEMA_FILES.length,
@@ -105,6 +108,16 @@ export function validateAuthoredContentAgainstSchemas(
       'status-effect-definition.schema.json',
       effect,
       `statusEffects.${effect.id}`,
+      issues,
+    );
+  }
+
+  for (const node of content.dialogueNodes.values()) {
+    validateAgainstLoadedSchema(
+      schemas,
+      'dialogue-node.schema.json',
+      node,
+      `dialogueNodes.${node.id}`,
       issues,
     );
   }

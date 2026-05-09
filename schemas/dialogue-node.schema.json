@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eclipse-vector.local/schemas/dialogue-node.schema.json",
+  "title": "Eclipse Vector DialogueNodeDefinition",
+  "type": "object",
+  "required": [
+    "id",
+    "version",
+    "missionId",
+    "speakerId",
+    "speakerName",
+    "trigger",
+    "text",
+    "priority",
+    "tags"
+  ],
+  "properties": {
+    "id": { "$ref": "#/$defs/stableId" },
+    "version": { "$ref": "#/$defs/semver" },
+    "missionId": { "$ref": "#/$defs/stableId" },
+    "speakerId": { "$ref": "#/$defs/stableId" },
+    "speakerName": { "type": "string", "minLength": 1 },
+    "trigger": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["eventType"],
+          "properties": {
+            "eventType": { "const": "mission.loaded" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["eventType"],
+          "properties": {
+            "eventType": { "const": "combat.entity_destroyed" },
+            "entityId": { "$ref": "#/$defs/stableId" },
+            "entityType": { "enum": ["player", "enemy", "projectile", "hazard"] }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["eventType"],
+          "properties": {
+            "eventType": { "const": "mission.objective_updated" },
+            "objectiveId": { "$ref": "#/$defs/stableId" },
+            "state": { "enum": ["inactive", "active", "completed", "failed"] }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["eventType"],
+          "properties": {
+            "eventType": { "const": "mission.choice_presented" },
+            "choiceId": { "$ref": "#/$defs/stableId" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["eventType"],
+          "properties": {
+            "eventType": { "const": "mission.choice_committed" },
+            "choiceId": { "$ref": "#/$defs/stableId" },
+            "selectedOption": { "$ref": "#/$defs/stableId" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["eventType"],
+          "properties": {
+            "eventType": { "const": "mission.resolved" },
+            "status": {
+              "enum": ["full_success", "costly_success", "fail_forward", "hard_fail"]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "text": { "type": "string", "minLength": 1 },
+    "priority": { "type": "number" },
+    "tags": { "type": "array", "items": { "$ref": "#/$defs/stableId" } }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+    "semver": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" }
+  }
+}

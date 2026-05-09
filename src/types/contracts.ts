@@ -1,6 +1,8 @@
 import type {
   ChoiceId,
   ContentVersion,
+  DialogueNodeId,
+  DialogueSpeakerId,
   EntityId,
   FactionId,
   FlagKey,
@@ -16,6 +18,8 @@ import type {
 export type {
   ChoiceId,
   ContentVersion,
+  DialogueNodeId,
+  DialogueSpeakerId,
   EntityId,
   FactionId,
   FlagKey,
@@ -410,6 +414,46 @@ export type DomainEventPayloadMap = {
 };
 
 export type DomainEventType = keyof DomainEventPayloadMap;
+
+export type DialogueTrigger =
+  | {
+      eventType: 'mission.loaded';
+    }
+  | {
+      eventType: 'combat.entity_destroyed';
+      entityId?: EntityId;
+      entityType?: EntityType;
+    }
+  | {
+      eventType: 'mission.objective_updated';
+      objectiveId?: ObjectiveId;
+      state?: ObjectiveState;
+    }
+  | {
+      eventType: 'mission.choice_presented';
+      choiceId?: ChoiceId;
+    }
+  | {
+      eventType: 'mission.choice_committed';
+      choiceId?: ChoiceId;
+      selectedOption?: string;
+    }
+  | {
+      eventType: 'mission.resolved';
+      status?: MissionOutcomeStatus;
+    };
+
+export type DialogueNodeDefinition = {
+  id: DialogueNodeId;
+  version: ContentVersion;
+  missionId: MissionId;
+  speakerId: DialogueSpeakerId;
+  speakerName: string;
+  trigger: DialogueTrigger;
+  text: string;
+  priority: number;
+  tags: string[];
+};
 
 export type DomainEvent<TType extends DomainEventType = DomainEventType> = {
   type: TType;

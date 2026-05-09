@@ -82,6 +82,25 @@ describe('content validation', () => {
     );
   });
 
+  it('rejects broken dialogue mission and trigger references', () => {
+    const content = createContentRegistry();
+    const node = content.dialogueNodes.get('corridor_breach_doctrine_prompt');
+    if (!node) {
+      throw new Error('Missing starter dialogue node');
+    }
+
+    node.missionId = 'missing_mission';
+    node.trigger = {
+      eventType: 'mission.choice_presented',
+      choiceId: 'missing_choice',
+    };
+
+    const result = validateContentRegistry(content);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((issue) => issue.message.includes('Unknown mission'))).toBe(true);
+  });
+
   it('keeps authored JSON schemas parseable', () => {
     const report = buildContentValidationReport();
 

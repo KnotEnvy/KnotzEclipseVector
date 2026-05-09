@@ -1,3 +1,4 @@
+import type { DialogueSnapshot } from '@/features/dialogue/dialogueDirector';
 import type { EntitySnapshot, GameState, MissionSnapshot } from '@/types/contracts';
 
 export class HudView {
@@ -7,6 +8,7 @@ export class HudView {
     entities: EntitySnapshot[];
     mission: MissionSnapshot;
     gameState: GameState;
+    dialogue: DialogueSnapshot;
     feed: string[];
   }): void {
     const player = input.entities.find((entity) => entity.type === 'player');
@@ -43,7 +45,16 @@ export class HudView {
           }
         </section>
       </div>
-      <div></div>
+      <div class="hud__center">
+        ${
+          input.dialogue.currentLine
+            ? `<section class="hud-panel hud-comms" aria-label="Mission comms">
+                <h2>${input.dialogue.currentLine.speakerName}</h2>
+                <p>${input.dialogue.currentLine.text}</p>
+              </section>`
+            : ''
+        }
+      </div>
       <div class="hud__bottom">
         <section class="hud-panel" aria-label="World state">
           <h2>Freeport Lattice</h2>

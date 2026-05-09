@@ -5,6 +5,7 @@ import { createContentRegistry } from '@/data/registry';
 import { validateContentRegistry } from '@/data/validation';
 import { AudioDirector } from '@/features/audio/audioDirector';
 import { createCombatState, snapshotCombat, tickCombat } from '@/features/combat/combatSimulation';
+import { DialogueDirector } from '@/features/dialogue/dialogueDirector';
 import { MissionRuntime } from '@/features/mission/missionRuntime';
 import { applyConsequenceBundle } from '@/features/narrative/narrativeState';
 import { LocalStorageSaveAdapter, SaveService } from '@/features/save/saveService';
@@ -52,6 +53,11 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
   const hud = new HudView(hudRoot);
   const input = new InputController(pixiHost);
   const audio = new AudioDirector(eventBus);
+  const dialogue = new DialogueDirector(
+    [...content.dialogueNodes.values()],
+    eventBus,
+    missionDef.id,
+  );
 
   wireEventFeed(eventBus, eventFeed, saveGame, saveService);
   eventBus.subscribe('combat.entity_destroyed', (event) => missionRuntime.handleEvent(event));
@@ -109,6 +115,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
           entities: latestEntities,
           mission: latestMission,
           gameState: saveGame.game,
+          dialogue: dialogue.snapshot(),
           feed: eventFeed,
         });
       },
@@ -122,6 +129,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
     loop.stop();
     input.destroy();
     audio.destroy();
+    dialogue.destroy();
     renderer.destroy();
   });
 }

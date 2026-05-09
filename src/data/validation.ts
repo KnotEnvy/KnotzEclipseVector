@@ -1,6 +1,8 @@
 import type { ContentRegistry } from './registry';
 import type {
   ConsequenceBundle,
+  DialogueNodeDefinition,
+  DialogueTrigger,
   FactionReputationState,
   MissionDefinition,
   ObjectiveDefinition,
@@ -50,10 +52,93 @@ export function validateContentRegistry(content: ContentRegistry): ContentValida
     validateMissionDefinition(mission, content, issues);
   }
 
+  for (const dialogueNode of content.dialogueNodes.values()) {
+    validateDialogueNodeDefinition(dialogueNode, content, issues);
+  }
+
   return {
     ok: issues.length === 0,
     issues,
   };
+}
+
+function validateDialogueNodeDefinition(
+  node: DialogueNodeDefinition,
+  content: Pick<ContentRegistry, 'missions'>,
+  issues: ContentValidationIssue[],
+): void {
+  const path = `dialogueNodes.${node.id}`;
+  assertStableId(node.id, `${path}.id`, issues);
+  assertSemver(node.version, `${path}.version`, issues);
+  assertStableId(node.missionId, `${path}.missionId`, issues);
+  assertStableId(node.speakerId, `${path}.speakerId`, issues);
+  assertNonEmptyString(node.speakerName, `${path}.speakerName`, issues);
+  assertNonEmptyString(node.text, `${path}.text`, issues);
+  assertFiniteNumber(node.priority, `${path}.priority`, issues);
+
+  const mission = content.missions.get(node.missionId);
+  if (!mission) {
+    issues.push({
+      path: `${path}.missionId`,
+      message: `Unknown mission reference: ${node.missionId}`,
+    });
+  }
+
+  validateDialogueTrigger(node.trigger, mission, `${path}.trigger`, issues);
+}
+
+function validateDialogueTrigger(
+  trigger: DialogueTrigger,
+  mission: MissionDefinition | undefined,
+  path: string,
+  issues: ContentValidationIssue[],
+): void {
+  const supportedEvents = new Set([
+    'mission.loaded',
+    'combat.entity_destroyed',
+    'mission.objective_updated',
+    'mission.choice_presented',
+    'mission.choice_committed',
+    'mission.resolved',
+  ]);
+
+  if (!supportedEvents.has(trigger.eventType)) {
+    issues.push({
+      path: `${path}.eventType`,
+      message: `Unsupported dialogue trigger event: ${trigger.eventType}`,
+    });
+  }
+
+  if ('objectiveId' in trigger && trigger.objectiveId) {
+    assertStableId(trigger.objectiveId, `${path}.objectiveId`, issues);
+    if (mission && !mission.objectives.some((objective) => objective.id === trigger.objectiveId)) {
+      issues.push({
+        path: `${path}.objectiveId`,
+        message: `Unknown objective reference: ${trigger.objectiveId}`,
+      });
+    }
+  }
+
+  if ('choiceId' in trigger && trigger.choiceId) {
+    assertStableId(trigger.choiceId, `${path}.choiceId`, issues);
+    const choiceExists = mission?.objectives.some(
+      (objective) => objective.kind === 'choice_gate' && objective.choiceId === trigger.choiceId,
+    );
+    if (mission && !choiceExists) {
+      issues.push({
+        path: `${path}.choiceId`,
+        message: `Unknown choice reference: ${trigger.choiceId}`,
+      });
+    }
+  }
+
+  if ('entityId' in trigger && trigger.entityId) {
+    assertStableId(trigger.entityId, `${path}.entityId`, issues);
+  }
+
+  if ('selectedOption' in trigger && trigger.selectedOption) {
+    assertStableId(trigger.selectedOption, `${path}.selectedOption`, issues);
+  }
 }
 
 function validateShipDefinition(

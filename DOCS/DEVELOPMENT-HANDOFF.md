@@ -38,11 +38,12 @@ The project is now a browser-runnable TypeScript game foundation using Vite and 
 - Starter content registry with boot-time validation.
 - Dedicated content validation CLI exposed through `npm run validate:content`.
 - Content validation now compiles the authored JSON Schema mirrors with Ajv 8 and validates starter missions, ships, weapons, status effects, factions, sectors, and the current initial save shell against those schemas.
+- First authored mission dialogue/comms layer: event-triggered dialogue nodes are defined as content, validated by schema/runtime checks, and surfaced in a DOM HUD comms panel.
 - Event contract fixtures for high-value gameplay and narrative events.
 - Save migration harness with a v0 legacy fixture and current-root hydration tests.
 - First authored combat status path: `pulse_lance_mk1` applies `ionized`, which emits `combat.status_applied` and ticks shield pressure over time.
 - One event-driven placeholder VFX response for enemy destruction.
-- Machine-readable JSON schema mirrors now exist for missions, player ships, weapons, status effects, faction state, sector state, and save roots.
+- Machine-readable JSON schema mirrors now exist for missions, dialogue nodes, player ships, weapons, status effects, faction state, sector state, and save roots.
 - Runtime content validation now covers ship tuning, weapon tuning, status effect timing/stacking basics, faction and sector registry identity, sector control references, encounter coordinates, reward values, and consequence deltas.
 - The content validation CLI reports registry counts and exits nonzero on schema, shape, or cross-reference drift.
 
@@ -74,6 +75,7 @@ Controls:
 - Content validation catches common drift such as invalid IDs, invalid semver, missing weapon/status references, invalid numeric tuning, malformed objectives, broken registry keys, and unknown sector/faction references.
 - Weapon status references are validated against authored status definitions.
 - Authored JSON schemas are compiled with the draft 2020-12 Ajv path and applied to starter content objects during content validation.
+- Dialogue is event-driven through `DialogueDirector`; authored lines listen to domain events and the HUD only renders the current dialogue snapshot.
 
 ## Important Files
 
@@ -81,10 +83,12 @@ Controls:
 - `src/core/eventBus.ts`: typed event envelope and pub/sub.
 - `src/core/gameLoop.ts`: fixed-step update loop.
 - `src/features/combat/combatSimulation.ts`: current headless combat implementation.
+- `src/features/dialogue/dialogueDirector.ts`: event-driven mission comms runtime.
 - `src/features/mission/missionRuntime.ts`: mission objective sequencing, choice commands, and outcome generation.
 - `src/features/narrative/narrativeState.ts`: consequence application into persistent game state.
 - `src/features/save/saveService.ts`: save adapter contract, localStorage implementation, and save hydration/migration entry point.
 - `src/data/missions.ts`: current starter mission content.
+- `src/data/dialogues.ts`: current starter mission dialogue/comms content.
 - `src/data/validation.ts`: starter content validator.
 - `src/tools/contentValidationReport.ts`: shared content validation report builder for tests and CLI output.
 - `src/tools/jsonSchemaValidator.ts`: Ajv-backed JSON Schema validation wrapper for content/schema drift checks.
@@ -113,16 +117,16 @@ Current known gate result from the latest implementation pass:
 - `npm run lint`: passing
 - `npm run format`: passing
 - `npm run validate:content`: passing
-- `npm test`: passing, 7 files and 15 tests
+- `npm test`: passing, 8 files and 17 tests
 - `npm run build`: passing
 
-Build caveat: Vite currently warns that the main JS chunk is just over 500 kB after minification. The latest observed build reported about 511.99 kB. This is mostly expected from PixiJS at this early stage, but renderer/app code-splitting should be addressed before content and presentation scale up.
+Build caveat: Vite currently warns that the main JS chunk is just over 500 kB after minification. The latest observed build reported about 517.10 kB. This is mostly expected from PixiJS at this early stage, but renderer/app code-splitting should be addressed before content and presentation scale up.
 
 ## Known Risks And Caveats
 
 - IndexedDB is not implemented yet. The current save adapter uses localStorage behind a replaceable storage interface.
 - Save migration discipline has started, but there is only one legacy fixture. Any persistent shape change needs a new before/after fixture pair.
-- Content schemas cover the existing runtime contracts, but there is no dialogue node contract or schema yet.
+- Dialogue nodes now exist, but this is a lightweight comms surface, not a full branching dialogue graph or localization-ready conversation system.
 - Some schema sections are still intentionally permissive, especially consequence bundles, encounter details, and nested save-world faction/sector maps. The Ajv pass now validates the schemas as written, but schema coverage should tighten before larger content packs land.
 - Combat is still in one implementation file. It should be split into movement, weapons, projectiles, damage, lifecycle, and status systems before adding more mechanics.
 - Status effects are functional but minimal. `ionized` currently demonstrates application, event emission, duration, and shield pressure; it is not yet a full general-purpose buff/debuff engine.
@@ -134,15 +138,15 @@ Build caveat: Vite currently warns that the main JS chunk is just over 500 kB af
 
 ## Current Next 10 Tasks
 
-1. Add a dialogue node contract and schema once the first authored dialogue surface is ready.
-2. Tighten the remaining permissive schema sections for consequence bundles, encounter sequence entries, and nested save-world faction/sector maps.
-3. Implement an IndexedDB save adapter while preserving the current save service contract and migration entry point.
-4. Split `combatSimulation.ts` into movement, weapon, projectile, damage, lifecycle, and status modules with focused tests.
-5. Expand status effects into a general system with stacking policy tests, expiry events, and UI-facing status summaries.
-6. Add Playwright boot smoke coverage for load, combat completion, choice selection, and save persistence.
-7. Add a debug overlay for event history, content validation, FPS/frame timing, and save state.
-8. Add a real asset manifest structure for VFX, UI, and audio keys.
-9. Expand mission runtime objective support for survive, timer, escort, and fail-forward branches.
+1. Tighten the remaining permissive schema sections for consequence bundles, encounter sequence entries, dialogue trigger filters, and nested save-world faction/sector maps.
+2. Implement an IndexedDB save adapter while preserving the current save service contract and migration entry point.
+3. Split `combatSimulation.ts` into movement, weapon, projectile, damage, lifecycle, and status modules with focused tests.
+4. Expand status effects into a general system with stacking policy tests, expiry events, and UI-facing status summaries.
+5. Add Playwright boot smoke coverage for load, combat completion, choice selection, dialogue display, and save persistence.
+6. Add a debug overlay for event history, content validation, FPS/frame timing, and save state.
+7. Add a real asset manifest structure for VFX, UI, dialogue portraits, and audio keys.
+8. Expand mission runtime objective support for timer, escort, and fail-forward branches.
+9. Expand dialogue from one-shot comms into queued/expiring lines with speaker portraits and localization keys.
 10. Code-split the Pixi renderer or app shell to remove the current bundle-size warning before heavier content lands.
 
 ## Handoff Update Protocol

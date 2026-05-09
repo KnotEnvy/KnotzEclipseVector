@@ -10,3 +10,5 @@ export type ShipId = string;
 export type StatusEffectId = string;
 export type ObjectiveId = string;
 export type SaveSlotId = string;
+export type DialogueNodeId = string;
+export type DialogueSpeakerId = string;

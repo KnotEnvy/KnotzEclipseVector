@@ -63,6 +63,12 @@ button {
   justify-content: space-between;
 }
 
+.hud__center {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
 .hud-panel {
   min-width: 220px;
   max-width: min(460px, calc(100vw - 32px));
@@ -123,6 +129,24 @@ button {
   font-size: 13px;
   line-height: 1.45;
   color: #c6d7e7;
+}
+
+.hud-comms {
+  width: min(560px, calc(100vw - 32px));
+  border-color: rgba(247, 208, 106, 0.38);
+  background: rgba(5, 10, 18, 0.78);
+  box-shadow: 0 0 34px rgba(247, 208, 106, 0.1);
+}
+
+.hud-comms h2 {
+  color: #f7d06a;
+}
+
+.hud-comms p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #eef7ff;
 }
 
 .hud-help {
