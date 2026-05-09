@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eclipse-vector.local/schemas/ship-definition.schema.json",
+  "title": "Eclipse Vector PlayerShipDefinition",
+  "type": "object",
+  "required": ["id", "version", "class", "displayName", "slots", "stats", "tags"],
+  "properties": {
+    "id": { "$ref": "#/$defs/stableId" },
+    "version": { "$ref": "#/$defs/semver" },
+    "class": { "enum": ["prototype", "skirmisher", "fortress", "control"] },
+    "displayName": { "type": "string", "minLength": 1 },
+    "slots": {
+      "type": "object",
+      "required": ["hull", "engine", "reactor", "shieldCore", "hardpoints", "utilities"],
+      "properties": {
+        "hull": { "$ref": "#/$defs/stableId" },
+        "engine": { "$ref": "#/$defs/stableId" },
+        "reactor": { "$ref": "#/$defs/stableId" },
+        "shieldCore": { "$ref": "#/$defs/stableId" },
+        "hardpoints": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stableId" }
+        },
+        "utilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stableId" }
+        },
+        "aiCore": { "$ref": "#/$defs/stableId" },
+        "droneBay": { "$ref": "#/$defs/stableId" }
+      },
+      "additionalProperties": false
+    },
+    "stats": {
+      "type": "object",
+      "required": ["maxHull", "maxShield", "maxEnergy", "maxHeat", "moveSpeed", "turnRate"],
+      "properties": {
+        "maxHull": { "type": "number", "exclusiveMinimum": 0 },
+        "maxShield": { "type": "number", "exclusiveMinimum": 0 },
+        "maxEnergy": { "type": "number", "exclusiveMinimum": 0 },
+        "maxHeat": { "type": "number", "exclusiveMinimum": 0 },
+        "moveSpeed": { "type": "number", "exclusiveMinimum": 0 },
+        "turnRate": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "tags": { "$ref": "#/$defs/tags" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+    "semver": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "tags": { "type": "array", "items": { "$ref": "#/$defs/stableId" } }
+  }
+}

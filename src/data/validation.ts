@@ -1,5 +1,14 @@
 import type { ContentRegistry } from './registry';
-import type { ConsequenceBundle, MissionDefinition, ObjectiveDefinition } from '@/types/contracts';
+import type {
+  ConsequenceBundle,
+  FactionReputationState,
+  MissionDefinition,
+  ObjectiveDefinition,
+  PlayerShipDefinition,
+  SectorState,
+  StatusEffectDefinition,
+  WeaponDefinition,
+} from '@/types/contracts';
 
 export type ContentValidationIssue = {
   path: string;
@@ -18,51 +27,23 @@ export function validateContentRegistry(content: ContentRegistry): ContentValida
   const issues: ContentValidationIssue[] = [];
 
   for (const ship of content.ships.values()) {
-    assertStableId(ship.id, `ships.${ship.id}.id`, issues);
-    assertSemver(ship.version, `ships.${ship.id}.version`, issues);
-
-    for (const weaponId of ship.slots.hardpoints) {
-      if (!content.weapons.has(weaponId)) {
-        issues.push({
-          path: `ships.${ship.id}.slots.hardpoints`,
-          message: `Unknown weapon reference: ${weaponId}`,
-        });
-      }
-    }
+    validateShipDefinition(ship, content, issues);
   }
 
   for (const weapon of content.weapons.values()) {
-    assertStableId(weapon.id, `weapons.${weapon.id}.id`, issues);
-    assertSemver(weapon.version, `weapons.${weapon.id}.version`, issues);
-
-    if (weapon.damageProfile.amount <= 0) {
-      issues.push({
-        path: `weapons.${weapon.id}.damageProfile.amount`,
-        message: 'Weapon damage must be positive.',
-      });
-    }
-
-    if (weapon.statusEffectId && !content.statusEffects.has(weapon.statusEffectId)) {
-      issues.push({
-        path: `weapons.${weapon.id}.statusEffectId`,
-        message: `Unknown status effect reference: ${weapon.statusEffectId}`,
-      });
-    }
-
-    if (
-      weapon.statusEffectChance !== undefined &&
-      (weapon.statusEffectChance < 0 || weapon.statusEffectChance > 1)
-    ) {
-      issues.push({
-        path: `weapons.${weapon.id}.statusEffectChance`,
-        message: 'Status effect chance must be between 0 and 1.',
-      });
-    }
+    validateWeaponDefinition(weapon, content, issues);
   }
 
   for (const effect of content.statusEffects.values()) {
-    assertStableId(effect.id, `statusEffects.${effect.id}.id`, issues);
-    assertSemver(effect.version, `statusEffects.${effect.id}.version`, issues);
+    validateStatusEffectDefinition(effect, issues);
+  }
+
+  for (const [factionKey, faction] of Object.entries(content.factions)) {
+    validateFactionState(factionKey, faction, issues);
+  }
+
+  for (const [sectorKey, sector] of Object.entries(content.sectors)) {
+    validateSectorState(sectorKey, sector, content, issues);
   }
 
   for (const mission of content.missions.values()) {
@@ -73,6 +54,138 @@ export function validateContentRegistry(content: ContentRegistry): ContentValida
     ok: issues.length === 0,
     issues,
   };
+}
+
+function validateShipDefinition(
+  ship: PlayerShipDefinition,
+  content: Pick<ContentRegistry, 'weapons'>,
+  issues: ContentValidationIssue[],
+): void {
+  const path = `ships.${ship.id}`;
+  assertStableId(ship.id, `${path}.id`, issues);
+  assertSemver(ship.version, `${path}.version`, issues);
+  assertNonEmptyString(ship.displayName, `${path}.displayName`, issues);
+
+  if (ship.slots.hardpoints.length === 0) {
+    issues.push({
+      path: `${path}.slots.hardpoints`,
+      message: 'Ships must define at least one weapon hardpoint.',
+    });
+  }
+
+  for (const weaponId of ship.slots.hardpoints) {
+    if (!content.weapons.has(weaponId)) {
+      issues.push({
+        path: `${path}.slots.hardpoints`,
+        message: `Unknown weapon reference: ${weaponId}`,
+      });
+    }
+  }
+
+  assertPositiveNumber(ship.stats.maxHull, `${path}.stats.maxHull`, issues);
+  assertPositiveNumber(ship.stats.maxShield, `${path}.stats.maxShield`, issues);
+  assertPositiveNumber(ship.stats.maxEnergy, `${path}.stats.maxEnergy`, issues);
+  assertPositiveNumber(ship.stats.maxHeat, `${path}.stats.maxHeat`, issues);
+  assertPositiveNumber(ship.stats.moveSpeed, `${path}.stats.moveSpeed`, issues);
+  assertPositiveNumber(ship.stats.turnRate, `${path}.stats.turnRate`, issues);
+}
+
+function validateWeaponDefinition(
+  weapon: WeaponDefinition,
+  content: Pick<ContentRegistry, 'statusEffects'>,
+  issues: ContentValidationIssue[],
+): void {
+  const path = `weapons.${weapon.id}`;
+  assertStableId(weapon.id, `${path}.id`, issues);
+  assertSemver(weapon.version, `${path}.version`, issues);
+  assertNonEmptyString(weapon.displayName, `${path}.displayName`, issues);
+  assertNonNegativeNumber(weapon.energyCost, `${path}.energyCost`, issues);
+  assertNonNegativeNumber(weapon.heatGain, `${path}.heatGain`, issues);
+  assertPositiveNumber(weapon.cooldownMs, `${path}.cooldownMs`, issues);
+  assertPositiveNumber(weapon.projectileSpeed, `${path}.projectileSpeed`, issues);
+  assertPositiveNumber(weapon.projectileLifetimeMs, `${path}.projectileLifetimeMs`, issues);
+  assertPositiveNumber(weapon.damageProfile.amount, `${path}.damageProfile.amount`, issues);
+  assertProbability(weapon.damageProfile.critChance, `${path}.damageProfile.critChance`, issues);
+
+  if (weapon.statusEffectId && !content.statusEffects.has(weapon.statusEffectId)) {
+    issues.push({
+      path: `${path}.statusEffectId`,
+      message: `Unknown status effect reference: ${weapon.statusEffectId}`,
+    });
+  }
+
+  if (weapon.statusEffectChance !== undefined) {
+    assertProbability(weapon.statusEffectChance, `${path}.statusEffectChance`, issues);
+
+    if (!weapon.statusEffectId) {
+      issues.push({
+        path: `${path}.statusEffectChance`,
+        message: 'Status effect chance requires a status effect id.',
+      });
+    }
+  }
+}
+
+function validateStatusEffectDefinition(
+  effect: StatusEffectDefinition,
+  issues: ContentValidationIssue[],
+): void {
+  const path = `statusEffects.${effect.id}`;
+  assertStableId(effect.id, `${path}.id`, issues);
+  assertSemver(effect.version, `${path}.version`, issues);
+  assertNonEmptyString(effect.displayName, `${path}.displayName`, issues);
+  assertPositiveNumber(effect.durationMs, `${path}.durationMs`, issues);
+  assertPositiveInteger(effect.maxStacks, `${path}.maxStacks`, issues);
+
+  if (effect.tickRateMs !== undefined) {
+    assertPositiveNumber(effect.tickRateMs, `${path}.tickRateMs`, issues);
+
+    if (effect.tickRateMs > effect.durationMs) {
+      issues.push({
+        path: `${path}.tickRateMs`,
+        message: 'Status effect tick rate cannot exceed duration.',
+      });
+    }
+  }
+}
+
+function validateFactionState(
+  factionKey: string,
+  faction: FactionReputationState,
+  issues: ContentValidationIssue[],
+): void {
+  const path = `factions.${factionKey}`;
+  assertStableId(factionKey, `${path}.key`, issues);
+  assertStableId(faction.factionId, `${path}.factionId`, issues);
+  assertMatchingKey(factionKey, faction.factionId, `${path}.factionId`, issues);
+  assertFiniteNumber(faction.reputation, `${path}.reputation`, issues);
+  assertFiniteNumber(faction.trust, `${path}.trust`, issues);
+}
+
+function validateSectorState(
+  sectorKey: string,
+  sector: SectorState,
+  content: Pick<ContentRegistry, 'factions'>,
+  issues: ContentValidationIssue[],
+): void {
+  const path = `sectors.${sectorKey}`;
+  assertStableId(sectorKey, `${path}.key`, issues);
+  assertStableId(sector.sectorId, `${path}.sectorId`, issues);
+  assertMatchingKey(sectorKey, sector.sectorId, `${path}.sectorId`, issues);
+
+  if (sector.control !== 'contested' && !content.factions[sector.control]) {
+    issues.push({
+      path: `${path}.control`,
+      message: `Unknown faction control reference: ${sector.control}`,
+    });
+  }
+
+  assertFiniteNumber(sector.security, `${path}.security`, issues);
+  assertFiniteNumber(sector.civilianStability, `${path}.civilianStability`, issues);
+  assertFiniteNumber(sector.anomalyIntensity, `${path}.anomalyIntensity`, issues);
+  assertFiniteNumber(sector.marketVolatility, `${path}.marketVolatility`, issues);
+  assertFiniteNumber(sector.infrastructureDamage, `${path}.infrastructureDamage`, issues);
+  assertFiniteNumber(sector.localSentiment, `${path}.localSentiment`, issues);
 }
 
 function validateMissionDefinition(
@@ -94,6 +207,31 @@ function validateMissionDefinition(
   for (const objective of mission.objectives) {
     validateObjective(mission, objective, objectiveIds, content, issues);
   }
+
+  for (const [index, encounter] of mission.encounterSequence.entries()) {
+    assertStableId(encounter.id, `missions.${mission.id}.encounterSequence.${index}.id`, issues);
+    assertStableId(
+      encounter.archetypeId,
+      `missions.${mission.id}.encounterSequence.${index}.archetypeId`,
+      issues,
+    );
+    assertFiniteNumber(
+      encounter.at.x,
+      `missions.${mission.id}.encounterSequence.${index}.at.x`,
+      issues,
+    );
+    assertFiniteNumber(
+      encounter.at.y,
+      `missions.${mission.id}.encounterSequence.${index}.at.y`,
+      issues,
+    );
+  }
+
+  assertNonNegativeNumber(
+    mission.rewards.salvage,
+    `missions.${mission.id}.rewards.salvage`,
+    issues,
+  );
 
   if (mission.consequences.length === 0) {
     issues.push({
@@ -188,6 +326,10 @@ function validateConsequenceBundle(
     }
   }
 
+  for (const [factionId, delta] of Object.entries(bundle.faction?.repDelta ?? {})) {
+    assertFiniteNumber(delta, `${path}.faction.repDelta.${factionId}`, issues);
+  }
+
   if (
     bundle.sector &&
     Object.keys(content.sectors).length > 0 &&
@@ -198,6 +340,21 @@ function validateConsequenceBundle(
       message: `Unknown sector reference: ${bundle.sector.sectorId}`,
     });
   }
+
+  if (bundle.sector) {
+    for (const [key, delta] of Object.entries(bundle.sector.delta)) {
+      assertFiniteNumber(delta, `${path}.sector.delta.${key}`, issues);
+    }
+    assertNonEmptyString(bundle.sector.reason, `${path}.sector.reason`, issues);
+  }
+
+  if (bundle.inventory?.salvage !== undefined) {
+    assertNonNegativeNumber(bundle.inventory.salvage, `${path}.inventory.salvage`, issues);
+  }
+
+  if (bundle.inventory) {
+    assertStableId(bundle.inventory.idempotencyKey, `${path}.inventory.idempotencyKey`, issues);
+  }
 }
 
 function assertStableId(value: string, path: string, issues: ContentValidationIssue[]): void {
@@ -205,6 +362,90 @@ function assertStableId(value: string, path: string, issues: ContentValidationIs
     issues.push({
       path,
       message: 'IDs must be stable lowercase snake-case strings.',
+    });
+  }
+}
+
+function assertMatchingKey(
+  key: string,
+  id: string,
+  path: string,
+  issues: ContentValidationIssue[],
+): void {
+  if (key !== id) {
+    issues.push({
+      path,
+      message: `Registry key must match object id. Expected ${key}, received ${id}.`,
+    });
+  }
+}
+
+function assertNonEmptyString(value: string, path: string, issues: ContentValidationIssue[]): void {
+  if (value.trim().length === 0) {
+    issues.push({
+      path,
+      message: 'Value must not be empty.',
+    });
+  }
+}
+
+function assertFiniteNumber(value: number, path: string, issues: ContentValidationIssue[]): void {
+  if (!Number.isFinite(value)) {
+    issues.push({
+      path,
+      message: 'Value must be a finite number.',
+    });
+  }
+}
+
+function assertPositiveNumber(value: number, path: string, issues: ContentValidationIssue[]): void {
+  assertFiniteNumber(value, path, issues);
+
+  if (value <= 0) {
+    issues.push({
+      path,
+      message: 'Value must be positive.',
+    });
+  }
+}
+
+function assertNonNegativeNumber(
+  value: number,
+  path: string,
+  issues: ContentValidationIssue[],
+): void {
+  assertFiniteNumber(value, path, issues);
+
+  if (value < 0) {
+    issues.push({
+      path,
+      message: 'Value must not be negative.',
+    });
+  }
+}
+
+function assertPositiveInteger(
+  value: number,
+  path: string,
+  issues: ContentValidationIssue[],
+): void {
+  assertPositiveNumber(value, path, issues);
+
+  if (!Number.isInteger(value)) {
+    issues.push({
+      path,
+      message: 'Value must be an integer.',
+    });
+  }
+}
+
+function assertProbability(value: number, path: string, issues: ContentValidationIssue[]): void {
+  assertFiniteNumber(value, path, issues);
+
+  if (value < 0 || value > 1) {
+    issues.push({
+      path,
+      message: 'Value must be between 0 and 1.',
     });
   }
 }

@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "validate:content": "vitest run tests/unit/contentValidation.test.ts",
+    "validate:content": "node scripts/validate-content.mjs",
     "lint": "eslint . --ext .ts",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
@@ -20,6 +20,7 @@
     "@types/node": "^22.10.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
+    "esbuild": "^0.21.5",
     "eslint": "^8.57.1",
     "prettier": "^3.3.3",
     "typescript": "^5.5.4",

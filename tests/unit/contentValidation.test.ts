@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createContentRegistry } from '@/data/registry';
 import { validateContentRegistry } from '@/data/validation';
+import {
+  buildContentValidationReport,
+  getContentSchemaFiles,
+} from '@/tools/contentValidationReport';
 
 describe('content validation', () => {
   it('accepts the starter content registry', () => {
@@ -38,5 +42,49 @@ describe('content validation', () => {
     expect(result.issues.some((issue) => issue.message.includes('Unknown status effect'))).toBe(
       true,
     );
+  });
+
+  it('rejects invalid ship and weapon numeric tuning', () => {
+    const content = createContentRegistry();
+    const ship = content.ships.get('veilrunner_proto');
+    const weapon = content.weapons.get('pulse_lance_mk1');
+    if (!ship || !weapon) {
+      throw new Error('Missing starter combat content');
+    }
+
+    ship.stats.moveSpeed = 0;
+    weapon.damageProfile.critChance = 2;
+    weapon.cooldownMs = -1;
+
+    const result = validateContentRegistry(content);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((issue) => issue.path.endsWith('stats.moveSpeed'))).toBe(true);
+    expect(result.issues.some((issue) => issue.path.endsWith('damageProfile.critChance'))).toBe(
+      true,
+    );
+    expect(result.issues.some((issue) => issue.path.endsWith('cooldownMs'))).toBe(true);
+  });
+
+  it('rejects broken faction and sector registry references', () => {
+    const content = createContentRegistry();
+
+    content.factions.freeports.factionId = 'freeport_typo';
+    content.sectors.freeport_lattice.control = 'missing_faction';
+
+    const result = validateContentRegistry(content);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((issue) => issue.message.includes('Registry key'))).toBe(true);
+    expect(result.issues.some((issue) => issue.message.includes('Unknown faction control'))).toBe(
+      true,
+    );
+  });
+
+  it('keeps authored JSON schemas parseable', () => {
+    const report = buildContentValidationReport();
+
+    expect(report.ok).toBe(true);
+    expect(report.summary.schemas).toBe(getContentSchemaFiles().length);
   });
 });

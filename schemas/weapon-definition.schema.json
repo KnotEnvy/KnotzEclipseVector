@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eclipse-vector.local/schemas/weapon-definition.schema.json",
+  "title": "Eclipse Vector WeaponDefinition",
+  "type": "object",
+  "required": [
+    "id",
+    "version",
+    "displayName",
+    "fireMode",
+    "energyCost",
+    "heatGain",
+    "cooldownMs",
+    "projectileSpeed",
+    "projectileLifetimeMs",
+    "damageProfile",
+    "tags",
+    "effectKey"
+  ],
+  "properties": {
+    "id": { "$ref": "#/$defs/stableId" },
+    "version": { "$ref": "#/$defs/semver" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "fireMode": { "enum": ["single", "burst", "beam"] },
+    "energyCost": { "type": "number", "minimum": 0 },
+    "heatGain": { "type": "number", "minimum": 0 },
+    "cooldownMs": { "type": "number", "exclusiveMinimum": 0 },
+    "projectileSpeed": { "type": "number", "exclusiveMinimum": 0 },
+    "projectileLifetimeMs": { "type": "number", "exclusiveMinimum": 0 },
+    "damageProfile": {
+      "type": "object",
+      "required": ["amount", "type", "critChance"],
+      "properties": {
+        "amount": { "type": "number", "exclusiveMinimum": 0 },
+        "type": { "enum": ["kinetic", "energy", "plasma", "ion", "veil"] },
+        "critChance": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "statusEffectId": { "$ref": "#/$defs/stableId" },
+    "statusEffectChance": { "type": "number", "minimum": 0, "maximum": 1 },
+    "tags": { "$ref": "#/$defs/tags" },
+    "effectKey": { "$ref": "#/$defs/stableId" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+    "semver": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "tags": { "type": "array", "items": { "$ref": "#/$defs/stableId" } }
+  }
+}

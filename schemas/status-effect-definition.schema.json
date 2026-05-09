@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eclipse-vector.local/schemas/status-effect-definition.schema.json",
+  "title": "Eclipse Vector StatusEffectDefinition",
+  "type": "object",
+  "required": [
+    "id",
+    "version",
+    "displayName",
+    "stacking",
+    "durationMs",
+    "maxStacks",
+    "visualKey",
+    "tags"
+  ],
+  "properties": {
+    "id": { "$ref": "#/$defs/stableId" },
+    "version": { "$ref": "#/$defs/semver" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "stacking": { "enum": ["refresh", "stack-duration", "stack-intensity", "unique"] },
+    "durationMs": { "type": "number", "exclusiveMinimum": 0 },
+    "tickRateMs": { "type": "number", "exclusiveMinimum": 0 },
+    "maxStacks": { "type": "integer", "minimum": 1 },
+    "visualKey": { "$ref": "#/$defs/stableId" },
+    "tags": { "$ref": "#/$defs/tags" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+    "semver": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "tags": { "type": "array", "items": { "$ref": "#/$defs/stableId" } }
+  }
+}

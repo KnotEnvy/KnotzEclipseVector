@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eclipse-vector.local/schemas/save-game-root.schema.json",
+  "title": "Eclipse Vector SaveGameRoot",
+  "type": "object",
+  "required": ["saveVersion", "meta", "game", "settings", "debug"],
+  "properties": {
+    "saveVersion": { "const": 1 },
+    "meta": {
+      "type": "object",
+      "required": ["slotId", "createdAt", "updatedAt", "playtimeMs", "buildHash"],
+      "properties": {
+        "slotId": { "type": "string", "minLength": 1 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "playtimeMs": { "type": "number", "minimum": 0 },
+        "buildHash": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "game": {
+      "type": "object",
+      "required": ["player", "campaign", "story", "world"],
+      "properties": {
+        "player": {
+          "type": "object",
+          "required": ["shipId", "loadout", "salvage", "unlocks"],
+          "properties": {
+            "shipId": { "$ref": "#/$defs/stableId" },
+            "loadout": {
+              "type": "object",
+              "required": ["primaryWeaponId"],
+              "properties": {
+                "primaryWeaponId": { "$ref": "#/$defs/stableId" }
+              },
+              "additionalProperties": false
+            },
+            "salvage": { "type": "number", "minimum": 0 },
+            "unlocks": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/stableId" }
+            }
+          },
+          "additionalProperties": false
+        },
+        "campaign": {
+          "type": "object",
+          "required": ["chapter", "completedMissions", "availableMissions"],
+          "properties": {
+            "chapter": { "type": "integer", "minimum": 1 },
+            "completedMissions": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/stableId" }
+            },
+            "availableMissions": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/stableId" }
+            }
+          },
+          "additionalProperties": false
+        },
+        "story": {
+          "type": "object",
+          "required": ["flags", "counters", "committedChoices", "endingVectors"],
+          "properties": {
+            "flags": { "type": "object", "additionalProperties": true },
+            "counters": {
+              "type": "object",
+              "additionalProperties": { "type": "number" }
+            },
+            "committedChoices": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["choiceId", "selectedOption", "source"],
+                "properties": {
+                  "choiceId": { "$ref": "#/$defs/stableId" },
+                  "selectedOption": { "$ref": "#/$defs/stableId" },
+                  "source": { "type": "string", "minLength": 1 }
+                },
+                "additionalProperties": false
+              }
+            },
+            "endingVectors": {
+              "type": "object",
+              "additionalProperties": { "type": "number" }
+            }
+          },
+          "additionalProperties": false
+        },
+        "world": {
+          "type": "object",
+          "required": ["sectors", "factions"],
+          "properties": {
+            "sectors": { "type": "object", "additionalProperties": { "type": "object" } },
+            "factions": { "type": "object", "additionalProperties": { "type": "object" } }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "settings": {
+      "type": "object",
+      "required": ["qualityTier", "reducedMotion", "masterVolume", "controlsProfileId"],
+      "properties": {
+        "qualityTier": { "enum": ["low", "recommended", "ultra"] },
+        "reducedMotion": { "type": "boolean" },
+        "masterVolume": { "type": "number", "minimum": 0, "maximum": 1 },
+        "controlsProfileId": { "$ref": "#/$defs/stableId" }
+      },
+      "additionalProperties": false
+    },
+    "debug": {
+      "type": "object",
+      "required": ["campaignSeed"],
+      "properties": {
+        "campaignSeed": { "type": "number" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" }
+  }
+}

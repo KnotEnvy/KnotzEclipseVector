@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eclipse-vector.local/schemas/faction-state.schema.json",
+  "title": "Eclipse Vector FactionReputationState",
+  "type": "object",
+  "required": ["factionId", "reputation", "trust", "disposition", "embargoed", "activePacts"],
+  "properties": {
+    "factionId": { "$ref": "#/$defs/stableId" },
+    "reputation": { "type": "number" },
+    "trust": { "type": "number" },
+    "disposition": { "enum": ["ally", "neutral", "hostile"] },
+    "embargoed": { "type": "boolean" },
+    "activePacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stableId" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" }
+  }
+}

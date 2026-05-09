@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eclipse-vector.local/schemas/sector-state.schema.json",
+  "title": "Eclipse Vector SectorState",
+  "type": "object",
+  "required": [
+    "sectorId",
+    "control",
+    "security",
+    "civilianStability",
+    "anomalyIntensity",
+    "marketVolatility",
+    "infrastructureDamage",
+    "localSentiment"
+  ],
+  "properties": {
+    "sectorId": { "$ref": "#/$defs/stableId" },
+    "control": {
+      "oneOf": [{ "const": "contested" }, { "$ref": "#/$defs/stableId" }]
+    },
+    "security": { "type": "number" },
+    "civilianStability": { "type": "number" },
+    "anomalyIntensity": { "type": "number" },
+    "marketVolatility": { "type": "number" },
+    "infrastructureDamage": { "type": "number" },
+    "localSentiment": { "type": "number" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" }
+  }
+}

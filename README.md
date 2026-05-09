@@ -27,6 +27,8 @@ The current playable slice boots a PixiJS playfield with a DOM HUD, a fixed-step
 
 The starter `pulse_lance_mk1` also applies the first status-effect path, `ionized`, so future combat work has a tested extension point for authored status definitions.
 
+Content validation now runs through a dedicated CLI and includes schema mirrors for the shipped mission, ship, weapon, status effect, faction, sector, and save-root contracts, plus runtime checks for high-risk cross-references and tuning values.
+
 Controls: `WASD` or arrow keys to move, mouse to aim, left mouse or space to fire, and `1` / `2` to choose a recovery doctrine when prompted.
 
 ## Handoff
