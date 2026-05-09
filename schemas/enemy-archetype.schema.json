@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eclipse-vector.local/schemas/enemy-archetype.schema.json",
+  "title": "Eclipse Vector EnemyArchetypeDefinition",
+  "type": "object",
+  "required": ["id", "version", "displayName", "factionId", "radius", "stats", "tags"],
+  "properties": {
+    "id": { "$ref": "#/$defs/stableId" },
+    "version": { "$ref": "#/$defs/semver" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "factionId": { "$ref": "#/$defs/stableId" },
+    "radius": { "type": "number", "exclusiveMinimum": 0 },
+    "stats": {
+      "type": "object",
+      "required": ["hull", "shield", "maxHeat"],
+      "properties": {
+        "hull": { "type": "number", "exclusiveMinimum": 0 },
+        "shield": { "type": "number", "minimum": 0 },
+        "maxHeat": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "tags": { "type": "array", "items": { "$ref": "#/$defs/stableId" } }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+    "semver": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" }
+  }
+}

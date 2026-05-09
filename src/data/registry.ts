@@ -1,6 +1,7 @@
 import { starterFactions } from './factions';
 import { starterDialogueNodes } from './dialogues';
-import { starterMission } from './missions';
+import { starterEnemyArchetypes } from './enemies';
+import { starterMissions } from './missions';
 import { starterSectors } from './sectors';
 import { starterShips } from './ships';
 import { starterStatusEffects } from './statusEffects';
@@ -14,9 +15,14 @@ export function createContentRegistry() {
   const statusEffects = new Map(
     starterStatusEffects.map((effect) => [effect.id, structuredClone(effect)]),
   );
-  const missions = new Map([[starterMission.id, structuredClone(starterMission)]]);
+  const missions = new Map(
+    starterMissions.map((mission) => [mission.id, structuredClone(mission)]),
+  );
   const dialogueNodes = new Map(
     starterDialogueNodes.map((node) => [node.id, structuredClone(node)]),
+  );
+  const enemyArchetypes = new Map(
+    starterEnemyArchetypes.map((enemy) => [enemy.id, structuredClone(enemy)]),
   );
 
   return {
@@ -25,6 +31,7 @@ export function createContentRegistry() {
     statusEffects,
     missions,
     dialogueNodes,
+    enemyArchetypes,
     sectors: structuredClone(starterSectors),
     factions: structuredClone(starterFactions),
   };

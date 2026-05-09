@@ -10,7 +10,7 @@ import { MissionRuntime } from '@/features/mission/missionRuntime';
 import { applyConsequenceBundle } from '@/features/narrative/narrativeState';
 import { LocalStorageSaveAdapter, SaveService } from '@/features/save/saveService';
 import { PixiRenderer } from '@/rendering/PixiRenderer';
-import type { EntitySnapshot, SaveGameRoot } from '@/types/contracts';
+import type { EntitySnapshot, MissionDefinition, SaveGameRoot } from '@/types/contracts';
 import { HudView } from './hud';
 import { InputController } from './input';
 
@@ -39,13 +39,13 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
   const saveService = new SaveService(new LocalStorageSaveAdapter(), eventBus);
   const saveGame = await saveService.loadOrCreate();
   const ship = content.ships.get(saveGame.game.player.shipId);
-  const missionDef = content.missions.get(saveGame.game.campaign.availableMissions[0]);
+  const missionDef = selectCurrentMission(saveGame, content.missions);
 
   if (!ship || !missionDef) {
     throw new Error('Starter ship or mission content is missing.');
   }
 
-  const combatState = createCombatState(content, ship);
+  const combatState = createCombatState(content, ship, missionDef);
   const missionRuntime = new MissionRuntime(missionDef, eventBus, {
     seed: saveGame.debug.campaignSeed,
   });
@@ -166,6 +166,21 @@ function wireEventFeed(
   window.setInterval(() => {
     void saveService.save(saveGame);
   }, 30000);
+}
+
+function selectCurrentMission(
+  saveGame: SaveGameRoot,
+  missions: ReadonlyMap<string, MissionDefinition>,
+): MissionDefinition | undefined {
+  const nextAvailableMissionId = saveGame.game.campaign.availableMissions.find(
+    (missionId) => !saveGame.game.campaign.completedMissions.includes(missionId),
+  );
+  if (nextAvailableMissionId) {
+    return missions.get(nextAvailableMissionId);
+  }
+
+  const fallbackMissionId = saveGame.game.campaign.availableMissions[0];
+  return fallbackMissionId ? missions.get(fallbackMissionId) : undefined;
 }
 
 function requireElement(root: HTMLElement, selector: string): HTMLElement {

@@ -3,6 +3,7 @@ import type {
   ConsequenceBundle,
   DialogueNodeDefinition,
   DialogueTrigger,
+  EnemyArchetypeDefinition,
   FactionReputationState,
   MissionDefinition,
   ObjectiveDefinition,
@@ -40,6 +41,10 @@ export function validateContentRegistry(content: ContentRegistry): ContentValida
     validateStatusEffectDefinition(effect, issues);
   }
 
+  for (const enemy of content.enemyArchetypes.values()) {
+    validateEnemyArchetypeDefinition(enemy, issues);
+  }
+
   for (const [factionKey, faction] of Object.entries(content.factions)) {
     validateFactionState(factionKey, faction, issues);
   }
@@ -60,6 +65,21 @@ export function validateContentRegistry(content: ContentRegistry): ContentValida
     ok: issues.length === 0,
     issues,
   };
+}
+
+function validateEnemyArchetypeDefinition(
+  enemy: EnemyArchetypeDefinition,
+  issues: ContentValidationIssue[],
+): void {
+  const path = `enemyArchetypes.${enemy.id}`;
+  assertStableId(enemy.id, `${path}.id`, issues);
+  assertSemver(enemy.version, `${path}.version`, issues);
+  assertNonEmptyString(enemy.displayName, `${path}.displayName`, issues);
+  assertStableId(enemy.factionId, `${path}.factionId`, issues);
+  assertPositiveNumber(enemy.radius, `${path}.radius`, issues);
+  assertPositiveNumber(enemy.stats.hull, `${path}.stats.hull`, issues);
+  assertNonNegativeNumber(enemy.stats.shield, `${path}.stats.shield`, issues);
+  assertPositiveNumber(enemy.stats.maxHeat, `${path}.stats.maxHeat`, issues);
 }
 
 function validateDialogueNodeDefinition(
@@ -300,6 +320,12 @@ function validateMissionDefinition(
       `missions.${mission.id}.encounterSequence.${index}.archetypeId`,
       issues,
     );
+    if (!content.enemyArchetypes.has(encounter.archetypeId)) {
+      issues.push({
+        path: `missions.${mission.id}.encounterSequence.${index}.archetypeId`,
+        message: `Unknown enemy archetype reference: ${encounter.archetypeId}`,
+      });
+    }
     assertFiniteNumber(
       encounter.at.x,
       `missions.${mission.id}.encounterSequence.${index}.at.x`,
@@ -398,7 +424,7 @@ function validateObjective(
 
 function validateConsequenceBundle(
   bundle: ConsequenceBundle,
-  content: Pick<ContentRegistry, 'factions' | 'sectors'>,
+  content: Pick<ContentRegistry, 'factions' | 'missions' | 'sectors'>,
   path: string,
   issues: ContentValidationIssue[],
 ): void {
@@ -439,6 +465,16 @@ function validateConsequenceBundle(
 
   if (bundle.inventory) {
     assertStableId(bundle.inventory.idempotencyKey, `${path}.inventory.idempotencyKey`, issues);
+  }
+
+  for (const missionId of bundle.campaign?.unlockMissions ?? []) {
+    assertStableId(missionId, `${path}.campaign.unlockMissions.${missionId}`, issues);
+    if (!content.missions.has(missionId)) {
+      issues.push({
+        path: `${path}.campaign.unlockMissions.${missionId}`,
+        message: `Unknown mission unlock reference: ${missionId}`,
+      });
+    }
   }
 }
 

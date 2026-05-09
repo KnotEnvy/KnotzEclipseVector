@@ -1,5 +1,6 @@
 import type { EventBus } from '@/core/eventBus';
 import { GAME_CONFIG } from '@/config/gameConfig';
+import { ashwakeWakeMission, starterMission } from '@/data/missions';
 import { createNewGameState } from '@/game/createGameState';
 import type { SaveGameRoot, SaveSlotId } from '@/types/contracts';
 
@@ -112,7 +113,7 @@ export function createInitialSave(slotId: SaveSlotId): SaveGameRoot {
 
 export function hydrateSaveGameRoot(value: unknown): SaveGameRoot | null {
   if (isSaveGameRoot(value)) {
-    return value;
+    return normalizeKnownContent(value);
   }
 
   if (isLegacySaveGameV0(value)) {
@@ -125,7 +126,7 @@ export function hydrateSaveGameRoot(value: unknown): SaveGameRoot | null {
 function migrateSaveGameV0(value: LegacySaveGameV0): SaveGameRoot {
   const now = new Date().toISOString();
 
-  return {
+  return normalizeKnownContent({
     saveVersion: CURRENT_SAVE_VERSION,
     meta: {
       slotId: value.meta.slotId,
@@ -144,7 +145,29 @@ function migrateSaveGameV0(value: LegacySaveGameV0): SaveGameRoot {
     debug: {
       campaignSeed: value.debug?.campaignSeed ?? 20260507,
     },
+  });
+}
+
+function normalizeKnownContent(saveGame: SaveGameRoot): SaveGameRoot {
+  const baseline = createNewGameState();
+
+  saveGame.game.world.sectors = {
+    ...structuredClone(baseline.world.sectors),
+    ...saveGame.game.world.sectors,
   };
+  saveGame.game.world.factions = {
+    ...structuredClone(baseline.world.factions),
+    ...saveGame.game.world.factions,
+  };
+
+  if (
+    saveGame.game.campaign.completedMissions.includes(starterMission.id) &&
+    !saveGame.game.campaign.availableMissions.includes(ashwakeWakeMission.id)
+  ) {
+    saveGame.game.campaign.availableMissions.push(ashwakeWakeMission.id);
+  }
+
+  return saveGame;
 }
 
 function isSaveGameRoot(value: unknown): value is SaveGameRoot {

@@ -12,7 +12,9 @@ export class HudView {
     feed: string[];
   }): void {
     const player = input.entities.find((entity) => entity.type === 'player');
-    const sector = input.gameState.world.sectors.freeport_lattice;
+    const sector =
+      input.gameState.world.sectors[input.mission.sectorId] ??
+      input.gameState.world.sectors.freeport_lattice;
     const freeports = input.gameState.world.factions.freeports;
 
     this.root.innerHTML = `
@@ -57,7 +59,7 @@ export class HudView {
       </div>
       <div class="hud__bottom">
         <section class="hud-panel" aria-label="World state">
-          <h2>Freeport Lattice</h2>
+          <h2>${sectorLabel(sector.sectorId)}</h2>
           <ul class="hud-list">
             <li>Freeports rep: ${freeports.reputation}</li>
             <li>Security: ${sector.security}</li>
@@ -73,6 +75,13 @@ export class HudView {
       </div>
     `;
   }
+}
+
+function sectorLabel(sectorId: string): string {
+  return sectorId
+    .split('_')
+    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+    .join(' ');
 }
 
 function meter(label: string, value: number, max: number): string {

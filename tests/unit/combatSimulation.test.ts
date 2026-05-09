@@ -7,8 +7,9 @@ describe('combat simulation', () => {
   it('resolves projectile hits and emits destruction without renderer access', () => {
     const content = createContentRegistry();
     const ship = content.ships.get('veilrunner_proto');
-    if (!ship) {
-      throw new Error('Missing starter ship');
+    const mission = content.missions.get('corridor_breach_01');
+    if (!ship || !mission) {
+      throw new Error('Missing starter ship or mission');
     }
 
     const bus = new EventBus();
@@ -21,7 +22,13 @@ describe('combat simulation', () => {
       statuses.push(`${event.payload.targetId}:${event.payload.statusId}`);
     });
 
-    const state = createCombatState(content, ship);
+    const state = createCombatState(content, ship, mission);
+    const spawnedEnemy = state.registry.get('enemy_fracture_drone_01');
+
+    expect(spawnedEnemy?.resources?.hull).toBe(
+      content.enemyArchetypes.get('fracture_drone')?.stats.hull,
+    );
+    expect(spawnedEnemy?.transform.position).toEqual({ x: 960, y: 360 });
 
     for (let frame = 0; frame < 220; frame += 1) {
       tickCombat(

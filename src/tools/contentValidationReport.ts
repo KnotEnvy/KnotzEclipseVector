@@ -11,6 +11,7 @@ const SCHEMA_FILES = [
   'ship-definition.schema.json',
   'weapon-definition.schema.json',
   'status-effect-definition.schema.json',
+  'enemy-archetype.schema.json',
   'dialogue-node.schema.json',
   'faction-state.schema.json',
   'sector-state.schema.json',
@@ -24,6 +25,7 @@ export type ContentValidationReport = {
     ships: number;
     weapons: number;
     statusEffects: number;
+    enemyArchetypes: number;
     dialogueNodes: number;
     factions: number;
     sectors: number;
@@ -45,6 +47,7 @@ export function buildContentValidationReport(rootDir = process.cwd()): ContentVa
       ships: content.ships.size,
       weapons: content.weapons.size,
       statusEffects: content.statusEffects.size,
+      enemyArchetypes: content.enemyArchetypes.size,
       dialogueNodes: content.dialogueNodes.size,
       factions: Object.keys(content.factions).length,
       sectors: Object.keys(content.sectors).length,
@@ -108,6 +111,16 @@ export function validateAuthoredContentAgainstSchemas(
       'status-effect-definition.schema.json',
       effect,
       `statusEffects.${effect.id}`,
+      issues,
+    );
+  }
+
+  for (const enemy of content.enemyArchetypes.values()) {
+    validateAgainstLoadedSchema(
+      schemas,
+      'enemy-archetype.schema.json',
+      enemy,
+      `enemyArchetypes.${enemy.id}`,
       issues,
     );
   }

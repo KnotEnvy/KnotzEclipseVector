@@ -82,7 +82,28 @@
         ]
       }
     },
-    "encounterSequence": { "type": "array" },
+    "encounterSequence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "archetypeId", "at"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+          "kind": { "const": "spawn_enemy" },
+          "archetypeId": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+          "at": {
+            "type": "object",
+            "required": ["x", "y"],
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
     "rewards": {
       "type": "object",
       "required": ["salvage", "unlocks", "repeatable"],

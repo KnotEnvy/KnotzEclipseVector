@@ -6,6 +6,7 @@ import type {
   EntityId,
   EntitySnapshot,
   EntityType,
+  MissionDefinition,
   PlayerShipDefinition,
   StatusEffectDefinition,
   StatusEffectId,
@@ -65,6 +66,7 @@ export type CombatState = {
 export function createCombatState(
   content: ContentRegistry,
   playerShip: PlayerShipDefinition,
+  mission: MissionDefinition,
 ): CombatState {
   const registry = new EntityRegistry<CombatEntity>();
 
@@ -94,30 +96,11 @@ export function createCombatState(
     weaponCooldownMs: 0,
   });
 
-  registry.add({
-    id: 'enemy_fracture_drone_01',
-    type: 'enemy',
-    factionId: 'fracture',
-    transform: {
-      position: { x: 960, y: GAME_CONFIG.world.height / 2 },
-      rotation: Math.PI,
-    },
-    velocity: { x: 0, y: 0 },
-    radius: 26,
-    active: true,
-    tags: ['enemy', 'fracture_drone'],
-    resources: {
-      hull: 80,
-      maxHull: 80,
-      shield: 30,
-      maxShield: 30,
-      energy: 0,
-      maxEnergy: 0,
-      heat: 0,
-      maxHeat: 100,
-    },
-    statuses: [],
-  });
+  for (const encounter of mission.encounterSequence) {
+    if (encounter.kind === 'spawn_enemy') {
+      spawnEnemyEncounter(registry, content, encounter);
+    }
+  }
 
   if (!content.weapons.has(playerShip.slots.hardpoints[0])) {
     throw new Error(`Missing starter weapon ${playerShip.slots.hardpoints[0]}`);
@@ -129,6 +112,42 @@ export function createCombatState(
     elapsedMs: 0,
     nextProjectileIndex: 0,
   };
+}
+
+function spawnEnemyEncounter(
+  registry: EntityRegistry<CombatEntity>,
+  content: ContentRegistry,
+  encounter: MissionDefinition['encounterSequence'][number],
+): void {
+  const archetype = content.enemyArchetypes.get(encounter.archetypeId);
+  if (!archetype) {
+    throw new Error(`Missing enemy archetype ${encounter.archetypeId}`);
+  }
+
+  registry.add({
+    id: `enemy_${encounter.id}`,
+    type: 'enemy',
+    factionId: archetype.factionId,
+    transform: {
+      position: { ...encounter.at },
+      rotation: Math.PI,
+    },
+    velocity: { x: 0, y: 0 },
+    radius: archetype.radius,
+    active: true,
+    tags: ['enemy', ...archetype.tags],
+    resources: {
+      hull: archetype.stats.hull,
+      maxHull: archetype.stats.hull,
+      shield: archetype.stats.shield,
+      maxShield: archetype.stats.shield,
+      energy: 0,
+      maxEnergy: 0,
+      heat: 0,
+      maxHeat: archetype.stats.maxHeat,
+    },
+    statuses: [],
+  });
 }
 
 export function tickCombat(

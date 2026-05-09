@@ -18,8 +18,20 @@ describe('save hydration and migration', () => {
 
     expect(migrated?.saveVersion).toBe(CURRENT_SAVE_VERSION);
     expect(migrated?.meta.slotId).toBe('legacy-a');
+    expect(migrated?.game.world.sectors.ashwake_cleft?.sectorId).toBe('ashwake_cleft');
     expect(migrated?.settings.qualityTier).toBe('recommended');
     expect(migrated?.debug.campaignSeed).toBe(20260501);
+  });
+
+  it('backfills current saves with newly authored follow-up content', () => {
+    const save = createInitialSave('A');
+    delete save.game.world.sectors.ashwake_cleft;
+    save.game.campaign.completedMissions.push('corridor_breach_01');
+
+    const hydrated = hydrateSaveGameRoot(save);
+
+    expect(hydrated?.game.world.sectors.ashwake_cleft?.sectorId).toBe('ashwake_cleft');
+    expect(hydrated?.game.campaign.availableMissions).toContain('ashwake_wake_02');
   });
 
   it('rejects invalid save payloads', () => {

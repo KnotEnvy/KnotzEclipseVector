@@ -115,6 +115,7 @@ export class MissionRuntime {
   snapshot(): MissionSnapshot {
     return {
       missionId: this.definition.id,
+      sectorId: this.definition.sectorId,
       phase: this.phase,
       objectives: this.objectiveProgress.map((objective) => ({ ...objective })),
       elapsedMs: this.elapsedMs,
@@ -339,12 +340,27 @@ function mergeConsequenceBundles(
         addition.narrative?.incrementCounters,
       ),
     },
+    campaign: mergeCampaignConsequence(base, addition),
     faction: {
       repDelta: sumRecords(base.faction?.repDelta, addition.faction?.repDelta),
     },
     sector: mergeSectorConsequence(base, addition),
     inventory: mergeInventoryConsequence(base, addition),
   };
+}
+
+function mergeCampaignConsequence(
+  base: ConsequenceBundle,
+  addition: ConsequenceBundle,
+): ConsequenceBundle['campaign'] {
+  const unlockMissions = [
+    ...new Set([
+      ...(base.campaign?.unlockMissions ?? []),
+      ...(addition.campaign?.unlockMissions ?? []),
+    ]),
+  ];
+
+  return unlockMissions.length > 0 ? { unlockMissions } : undefined;
 }
 
 function sumRecords(

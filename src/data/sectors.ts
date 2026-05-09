@@ -11,4 +11,14 @@ export const starterSectors: Record<string, SectorState> = {
     infrastructureDamage: 1,
     localSentiment: 0,
   },
+  ashwake_cleft: {
+    sectorId: 'ashwake_cleft',
+    control: 'ashwake',
+    security: -1,
+    civilianStability: -2,
+    anomalyIntensity: 4,
+    marketVolatility: 2,
+    infrastructureDamage: 2,
+    localSentiment: -1,
+  },
 };

@@ -3,6 +3,7 @@ import type {
   ContentVersion,
   DialogueNodeId,
   DialogueSpeakerId,
+  EnemyArchetypeId,
   EntityId,
   FactionId,
   FlagKey,
@@ -20,6 +21,7 @@ export type {
   ContentVersion,
   DialogueNodeId,
   DialogueSpeakerId,
+  EnemyArchetypeId,
   EntityId,
   FactionId,
   FlagKey,
@@ -133,6 +135,20 @@ export type StatusEffectDefinition = {
   tags: string[];
 };
 
+export type EnemyArchetypeDefinition = {
+  id: EnemyArchetypeId;
+  version: ContentVersion;
+  displayName: string;
+  factionId: FactionId;
+  radius: number;
+  stats: {
+    hull: number;
+    shield: number;
+    maxHeat: number;
+  };
+  tags: string[];
+};
+
 export type FactionReputationState = {
   factionId: FactionId;
   reputation: number;
@@ -201,6 +217,9 @@ export type ConsequenceBundle = {
     setFlags?: Record<FlagKey, FlagValue>;
     incrementCounters?: Record<FlagKey, number>;
   };
+  campaign?: {
+    unlockMissions?: MissionId[];
+  };
   faction?: {
     repDelta?: Record<FactionId, number>;
   };
@@ -233,7 +252,7 @@ export type MissionDefinition = {
   encounterSequence: Array<{
     id: string;
     kind: 'spawn_enemy';
-    archetypeId: string;
+    archetypeId: EnemyArchetypeId;
     at: Vector2;
   }>;
   rewards: RewardTable;
@@ -250,6 +269,7 @@ export type MissionOutcome = {
 
 export type MissionSnapshot = {
   missionId: MissionId;
+  sectorId: SectorId;
   phase: MissionPhase;
   objectives: MissionObjectiveProgress[];
   elapsedMs: number;

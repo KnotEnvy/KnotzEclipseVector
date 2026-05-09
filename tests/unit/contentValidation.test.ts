@@ -45,6 +45,40 @@ describe('content validation', () => {
     );
   });
 
+  it('rejects broken mission enemy archetype references', () => {
+    const content = createContentRegistry();
+    const mission = content.missions.get('corridor_breach_01');
+    if (!mission) {
+      throw new Error('Missing starter mission');
+    }
+
+    mission.encounterSequence[0].archetypeId = 'missing_enemy';
+    const result = validateContentRegistry(content);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((issue) => issue.message.includes('Unknown enemy archetype'))).toBe(
+      true,
+    );
+  });
+
+  it('rejects broken campaign mission unlock references', () => {
+    const content = createContentRegistry();
+    const mission = content.missions.get('corridor_breach_01');
+    if (!mission) {
+      throw new Error('Missing starter mission');
+    }
+
+    mission.consequences[0].apply.campaign = {
+      unlockMissions: ['missing_followup'],
+    };
+    const result = validateContentRegistry(content);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((issue) => issue.message.includes('Unknown mission unlock'))).toBe(
+      true,
+    );
+  });
+
   it('rejects invalid ship and weapon numeric tuning', () => {
     const content = createContentRegistry();
     const ship = content.ships.get('veilrunner_proto');

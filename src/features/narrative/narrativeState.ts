@@ -22,6 +22,12 @@ export function applyConsequenceBundle(
     gameState.story.counters[counter] = (gameState.story.counters[counter] ?? 0) + delta;
   }
 
+  for (const missionToUnlock of consequence.campaign?.unlockMissions ?? []) {
+    if (!gameState.campaign.availableMissions.includes(missionToUnlock)) {
+      gameState.campaign.availableMissions.push(missionToUnlock);
+    }
+  }
+
   if (consequence.faction?.repDelta) {
     applyFactionReputationDelta(
       gameState.world.factions,
