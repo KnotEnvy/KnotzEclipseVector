@@ -16,6 +16,8 @@ export const starterWeapons: WeaponDefinition[] = [
       type: 'energy',
       critChance: 0,
     },
+    statusEffectId: 'ionized',
+    statusEffectChance: 1,
     tags: ['primary', 'prototype', 'readable'],
     effectKey: 'pulse_lance_trail',
   },

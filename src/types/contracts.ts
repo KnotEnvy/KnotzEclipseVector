@@ -59,6 +59,11 @@ export type EntitySnapshot = {
   maxHull?: number;
   shield?: number;
   maxShield?: number;
+  statuses?: Array<{
+    statusId: StatusEffectId;
+    stacks: number;
+    remainingMs: number;
+  }>;
 };
 
 export type DamageProfile = {
@@ -78,6 +83,8 @@ export type WeaponDefinition = {
   projectileSpeed: number;
   projectileLifetimeMs: number;
   damageProfile: DamageProfile;
+  statusEffectId?: StatusEffectId;
+  statusEffectChance?: number;
   tags: string[];
   effectKey: string;
 };

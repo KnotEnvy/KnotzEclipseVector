@@ -13,8 +13,12 @@ describe('combat simulation', () => {
 
     const bus = new EventBus();
     const destroyed: string[] = [];
+    const statuses: string[] = [];
     bus.subscribe('combat.entity_destroyed', (event) => {
       destroyed.push(event.payload.entityId);
+    });
+    bus.subscribe('combat.status_applied', (event) => {
+      statuses.push(`${event.payload.targetId}:${event.payload.statusId}`);
     });
 
     const state = createCombatState(content, ship);
@@ -34,6 +38,7 @@ describe('combat simulation', () => {
     }
 
     expect(destroyed).toContain('enemy_fracture_drone_01');
+    expect(statuses).toContain('enemy_fracture_drone_01:ionized');
     expect(state.registry.get('enemy_fracture_drone_01')?.active).toBe(false);
   });
 });

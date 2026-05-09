@@ -3,7 +3,7 @@ import { GAME_CONFIG } from '@/config/gameConfig';
 import { createNewGameState } from '@/game/createGameState';
 import type { SaveGameRoot, SaveSlotId } from '@/types/contracts';
 
-const SAVE_VERSION = 1;
+export const CURRENT_SAVE_VERSION = 1;
 
 export interface SaveStorageAdapter {
   loadSlot(slotId: SaveSlotId): Promise<SaveGameRoot | null>;
@@ -21,12 +21,7 @@ export class LocalStorageSaveAdapter implements SaveStorageAdapter {
       return null;
     }
 
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isSaveGameRoot(parsed)) {
-      return null;
-    }
-
-    return parsed;
+    return hydrateSaveGameRoot(JSON.parse(raw) as unknown);
   }
 
   async saveSlot(slotId: SaveSlotId, saveGame: SaveGameRoot): Promise<void> {
@@ -94,7 +89,7 @@ export function createInitialSave(slotId: SaveSlotId): SaveGameRoot {
   const now = new Date().toISOString();
 
   return {
-    saveVersion: SAVE_VERSION,
+    saveVersion: CURRENT_SAVE_VERSION,
     meta: {
       slotId,
       createdAt: now,
@@ -115,6 +110,43 @@ export function createInitialSave(slotId: SaveSlotId): SaveGameRoot {
   };
 }
 
+export function hydrateSaveGameRoot(value: unknown): SaveGameRoot | null {
+  if (isSaveGameRoot(value)) {
+    return value;
+  }
+
+  if (isLegacySaveGameV0(value)) {
+    return migrateSaveGameV0(value);
+  }
+
+  return null;
+}
+
+function migrateSaveGameV0(value: LegacySaveGameV0): SaveGameRoot {
+  const now = new Date().toISOString();
+
+  return {
+    saveVersion: CURRENT_SAVE_VERSION,
+    meta: {
+      slotId: value.meta.slotId,
+      createdAt: value.meta.createdAt ?? now,
+      updatedAt: now,
+      playtimeMs: value.meta.playtimeMs ?? 0,
+      buildHash: value.meta.buildHash ?? GAME_CONFIG.save.buildHash,
+    },
+    game: value.game,
+    settings: {
+      qualityTier: 'recommended',
+      reducedMotion: false,
+      masterVolume: 0.8,
+      controlsProfileId: 'default-keyboard-mouse',
+    },
+    debug: {
+      campaignSeed: value.debug?.campaignSeed ?? 20260507,
+    },
+  };
+}
+
 function isSaveGameRoot(value: unknown): value is SaveGameRoot {
   if (!value || typeof value !== 'object') {
     return false;
@@ -122,6 +154,33 @@ function isSaveGameRoot(value: unknown): value is SaveGameRoot {
 
   const candidate = value as Partial<SaveGameRoot>;
   return (
-    candidate.saveVersion === SAVE_VERSION && Boolean(candidate.meta) && Boolean(candidate.game)
+    candidate.saveVersion === CURRENT_SAVE_VERSION &&
+    Boolean(candidate.meta) &&
+    Boolean(candidate.game) &&
+    Boolean(candidate.settings) &&
+    Boolean(candidate.debug)
   );
+}
+
+type LegacySaveGameV0 = {
+  saveVersion: 0;
+  meta: {
+    slotId: SaveSlotId;
+    createdAt?: string;
+    playtimeMs?: number;
+    buildHash?: string;
+  };
+  game: SaveGameRoot['game'];
+  debug?: {
+    campaignSeed?: number;
+  };
+};
+
+function isLegacySaveGameV0(value: unknown): value is LegacySaveGameV0 {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<LegacySaveGameV0>;
+  return candidate.saveVersion === 0 && Boolean(candidate.meta) && Boolean(candidate.game);
 }

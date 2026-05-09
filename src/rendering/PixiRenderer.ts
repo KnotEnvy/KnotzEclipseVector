@@ -187,4 +187,12 @@ function drawEntity(graphic: Graphics, entity: EntitySnapshot, missionResolved: 
     graphic.lineStyle(2, 0x7fe7ff, Math.max(0.15, shieldPct));
     graphic.drawCircle(0, 0, entity.radius + 7);
   }
+
+  if (entity.statuses?.some((status) => status.statusId === 'ionized')) {
+    graphic.lineStyle(2, 0x8df4ff, 0.82);
+    graphic.moveTo(-entity.radius - 10, -entity.radius - 10);
+    graphic.lineTo(entity.radius + 10, entity.radius + 10);
+    graphic.moveTo(entity.radius + 10, -entity.radius - 10);
+    graphic.lineTo(-entity.radius - 10, entity.radius + 10);
+  }
 }

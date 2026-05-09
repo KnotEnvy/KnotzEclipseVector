@@ -16,12 +16,19 @@ Open the Vite URL printed by the dev server.
 ```bash
 npm run typecheck
 npm run lint
+npm run validate:content
 npm test
 npm run build
 ```
 
 ## Current Slice
 
-The first playable slice boots a PixiJS playfield with a DOM HUD, a fixed-step simulation loop, typed events, player movement, basic firing, one enemy placeholder, hit resolution, one mission objective, one mission outcome, and one persistent consequence applied through the save shell.
+The current playable slice boots a PixiJS playfield with a DOM HUD, a fixed-step simulation loop, typed events, player movement, basic firing, one enemy placeholder, hit resolution, a destroy objective, a branchable mission choice, one mission outcome, and persistent consequences applied through the save shell.
 
-Controls: `WASD` or arrow keys to move, mouse to aim, left mouse or space to fire.
+The starter `pulse_lance_mk1` also applies the first status-effect path, `ionized`, so future combat work has a tested extension point for authored status definitions.
+
+Controls: `WASD` or arrow keys to move, mouse to aim, left mouse or space to fire, and `1` / `2` to choose a recovery doctrine when prompted.
+
+## Handoff
+
+Start with `DOCS/DEVELOPMENT-HANDOFF.md` before continuing implementation.

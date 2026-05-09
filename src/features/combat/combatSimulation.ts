@@ -7,6 +7,8 @@ import type {
   EntitySnapshot,
   EntityType,
   PlayerShipDefinition,
+  StatusEffectDefinition,
+  StatusEffectId,
   Vector2,
   WeaponDefinition,
 } from '@/types/contracts';
@@ -34,12 +36,22 @@ type ProjectileState = {
   weaponId: string;
   damage: number;
   damageType: WeaponDefinition['damageProfile']['type'];
+  statusEffectId?: StatusEffectId;
+  statusEffectChance: number;
   lifetimeMs: number;
+};
+
+type ActiveStatusEffect = {
+  statusId: StatusEffectId;
+  stacks: number;
+  remainingMs: number;
+  tickAccumulatorMs: number;
 };
 
 export type CombatEntity = RuntimeEntity & {
   resources?: CombatResources;
   projectile?: ProjectileState;
+  statuses?: ActiveStatusEffect[];
   weaponCooldownMs?: number;
 };
 
@@ -78,6 +90,7 @@ export function createCombatState(
       heat: 0,
       maxHeat: playerShip.stats.maxHeat,
     },
+    statuses: [],
     weaponCooldownMs: 0,
   });
 
@@ -103,6 +116,7 @@ export function createCombatState(
       heat: 0,
       maxHeat: 100,
     },
+    statuses: [],
   });
 
   if (!content.weapons.has(playerShip.slots.hardpoints[0])) {
@@ -137,6 +151,7 @@ export function tickCombat(
 
   updatePlayer(player, command, ship, deltaMs);
   updateCooldownAndResources(player, deltaMs);
+  tickStatusEffects(state, content, eventBus, deltaMs);
 
   if (command.firePrimary) {
     tryFirePrimary(state, player, command, weapon);
@@ -148,7 +163,7 @@ export function tickCombat(
     }
   }
 
-  resolveProjectileHits(state, eventBus);
+  resolveProjectileHits(state, content, eventBus);
   cleanupInactiveProjectiles(state);
 }
 
@@ -163,6 +178,11 @@ export function snapshotCombat(state: CombatState): EntitySnapshot[] {
     maxHull: entity.resources?.maxHull,
     shield: entity.resources?.shield,
     maxShield: entity.resources?.maxShield,
+    statuses: entity.statuses?.map((status) => ({
+      statusId: status.statusId,
+      stacks: status.stacks,
+      remainingMs: status.remainingMs,
+    })),
   }));
 }
 
@@ -264,6 +284,8 @@ function tryFirePrimary(
       weaponId: weapon.id,
       damage: weapon.damageProfile.amount,
       damageType: weapon.damageProfile.type,
+      statusEffectId: weapon.statusEffectId,
+      statusEffectChance: weapon.statusEffectChance ?? 0,
       lifetimeMs: weapon.projectileLifetimeMs,
     },
   });
@@ -290,7 +312,11 @@ function updateProjectile(projectile: CombatEntity, deltaMs: number): void {
   }
 }
 
-function resolveProjectileHits(state: CombatState, eventBus: EventBus): void {
+function resolveProjectileHits(
+  state: CombatState,
+  content: ContentRegistry,
+  eventBus: EventBus,
+): void {
   const projectiles = state.registry
     .activeValues()
     .filter((entity) => entity.type === 'projectile' && entity.projectile);
@@ -315,6 +341,7 @@ function resolveProjectileHits(state: CombatState, eventBus: EventBus): void {
     }
 
     applyDamage(target, projectile, eventBus);
+    applyProjectileStatusEffect(target, projectile, content, eventBus);
     projectile.active = false;
   }
 }
@@ -367,6 +394,129 @@ function applyDamage(target: CombatEntity, projectile: CombatEntity, eventBus: E
         actorId: projectile.projectile.sourceId,
       },
     );
+  }
+}
+
+function applyProjectileStatusEffect(
+  target: CombatEntity,
+  projectile: CombatEntity,
+  content: ContentRegistry,
+  eventBus: EventBus,
+): void {
+  if (!projectile.projectile?.statusEffectId || projectile.projectile.statusEffectChance <= 0) {
+    return;
+  }
+
+  const definition = content.statusEffects.get(projectile.projectile.statusEffectId);
+  if (!definition) {
+    return;
+  }
+
+  const status = target.statuses?.find(
+    (activeStatus) => activeStatus.statusId === projectile.projectile?.statusEffectId,
+  );
+  if (status) {
+    refreshStatusEffect(status, definition);
+  } else {
+    target.statuses = target.statuses ?? [];
+    target.statuses.push({
+      statusId: projectile.projectile.statusEffectId,
+      stacks: 1,
+      remainingMs: definition.durationMs,
+      tickAccumulatorMs: 0,
+    });
+  }
+
+  eventBus.publish(
+    'combat.status_applied',
+    {
+      targetId: target.id,
+      statusId: projectile.projectile.statusEffectId,
+      stacks: 1,
+      durationMs: definition.durationMs,
+      sourceId: projectile.projectile.sourceId,
+    },
+    {
+      actorId: projectile.projectile.sourceId,
+    },
+  );
+}
+
+function refreshStatusEffect(status: ActiveStatusEffect, definition: StatusEffectDefinition): void {
+  if (definition.stacking === 'stack-intensity') {
+    status.stacks = Math.min(definition.maxStacks, status.stacks + 1);
+    status.remainingMs = Math.max(status.remainingMs, definition.durationMs);
+    return;
+  }
+
+  if (definition.stacking === 'stack-duration') {
+    status.remainingMs = Math.min(
+      status.remainingMs + definition.durationMs,
+      definition.durationMs * definition.maxStacks,
+    );
+    return;
+  }
+
+  status.stacks = Math.max(status.stacks, 1);
+  status.remainingMs = Math.max(status.remainingMs, definition.durationMs);
+}
+
+function tickStatusEffects(
+  state: CombatState,
+  content: ContentRegistry,
+  eventBus: EventBus,
+  deltaMs: number,
+): void {
+  for (const entity of state.registry.activeValues()) {
+    if (!entity.statuses || entity.statuses.length === 0) {
+      continue;
+    }
+
+    for (const status of entity.statuses) {
+      const definition = content.statusEffects.get(status.statusId);
+      status.remainingMs -= deltaMs;
+      if (definition) {
+        tickStatusEffect(entity, status, definition, eventBus, deltaMs);
+      }
+    }
+
+    entity.statuses = entity.statuses.filter((status) => status.remainingMs > 0);
+  }
+}
+
+function tickStatusEffect(
+  entity: CombatEntity,
+  status: ActiveStatusEffect,
+  definition: StatusEffectDefinition,
+  eventBus: EventBus,
+  deltaMs: number,
+): void {
+  if (!entity.resources || definition.id !== 'ionized' || !definition.tickRateMs) {
+    return;
+  }
+
+  status.tickAccumulatorMs += deltaMs;
+  while (status.tickAccumulatorMs >= definition.tickRateMs && status.remainingMs > 0) {
+    status.tickAccumulatorMs -= definition.tickRateMs;
+    const beforeShield = entity.resources.shield;
+    entity.resources.shield = clamp(
+      entity.resources.shield - 1 * status.stacks,
+      0,
+      entity.resources.maxShield,
+    );
+
+    if (beforeShield !== entity.resources.shield) {
+      eventBus.publish('combat.damage_applied', {
+        targetId: entity.id,
+        sourceId: 'status_ionized',
+        amount: beforeShield - entity.resources.shield,
+        damageType: 'ion',
+        shielded: true,
+        crit: false,
+        remainingHull: entity.resources.hull,
+        remainingShield: entity.resources.shield,
+      });
+    }
   }
 }
 

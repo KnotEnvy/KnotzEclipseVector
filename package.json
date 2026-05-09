@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "validate:content": "vitest run tests/unit/contentValidation.test.ts",
     "lint": "eslint . --ext .ts",
     "format": "prettier --check .",
     "format:write": "prettier --write ."

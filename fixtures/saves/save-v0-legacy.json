@@ -1,0 +1,65 @@
+{
+  "saveVersion": 0,
+  "meta": {
+    "slotId": "legacy-a",
+    "createdAt": "2026-05-01T00:00:00.000Z",
+    "playtimeMs": 12345,
+    "buildHash": "legacy-local"
+  },
+  "game": {
+    "player": {
+      "shipId": "veilrunner_proto",
+      "loadout": {
+        "primaryWeaponId": "pulse_lance_mk1"
+      },
+      "salvage": 0,
+      "unlocks": []
+    },
+    "campaign": {
+      "chapter": 1,
+      "completedMissions": [],
+      "availableMissions": ["corridor_breach_01"]
+    },
+    "story": {
+      "flags": {},
+      "counters": {},
+      "committedChoices": [],
+      "endingVectors": {}
+    },
+    "world": {
+      "sectors": {
+        "freeport_lattice": {
+          "sectorId": "freeport_lattice",
+          "control": "contested",
+          "security": 0,
+          "civilianStability": 0,
+          "anomalyIntensity": 2,
+          "marketVolatility": 1,
+          "infrastructureDamage": 1,
+          "localSentiment": 0
+        }
+      },
+      "factions": {
+        "freeports": {
+          "factionId": "freeports",
+          "reputation": 0,
+          "trust": 0,
+          "disposition": "neutral",
+          "embargoed": false,
+          "activePacts": []
+        },
+        "ashwake": {
+          "factionId": "ashwake",
+          "reputation": 0,
+          "trust": 0,
+          "disposition": "neutral",
+          "embargoed": false,
+          "activePacts": []
+        }
+      }
+    }
+  },
+  "debug": {
+    "campaignSeed": 20260501
+  }
+}

@@ -23,4 +23,20 @@ describe('content validation', () => {
     expect(result.ok).toBe(false);
     expect(result.issues.some((issue) => issue.message.includes('Unknown weapon'))).toBe(true);
   });
+
+  it('rejects broken status effect references from weapons', () => {
+    const content = createContentRegistry();
+    const weapon = content.weapons.get('pulse_lance_mk1');
+    if (!weapon) {
+      throw new Error('Missing starter weapon');
+    }
+
+    weapon.statusEffectId = 'missing_status';
+    const result = validateContentRegistry(content);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((issue) => issue.message.includes('Unknown status effect'))).toBe(
+      true,
+    );
+  });
 });

@@ -41,6 +41,23 @@ export function validateContentRegistry(content: ContentRegistry): ContentValida
         message: 'Weapon damage must be positive.',
       });
     }
+
+    if (weapon.statusEffectId && !content.statusEffects.has(weapon.statusEffectId)) {
+      issues.push({
+        path: `weapons.${weapon.id}.statusEffectId`,
+        message: `Unknown status effect reference: ${weapon.statusEffectId}`,
+      });
+    }
+
+    if (
+      weapon.statusEffectChance !== undefined &&
+      (weapon.statusEffectChance < 0 || weapon.statusEffectChance > 1)
+    ) {
+      issues.push({
+        path: `weapons.${weapon.id}.statusEffectChance`,
+        message: 'Status effect chance must be between 0 and 1.',
+      });
+    }
   }
 
   for (const effect of content.statusEffects.values()) {
