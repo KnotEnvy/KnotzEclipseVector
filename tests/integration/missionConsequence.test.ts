@@ -81,4 +81,25 @@ describe('mission consequence flow', () => {
     expect(gameState.world.sectors.ashwake_cleft.anomalyIntensity).toBe(2);
     expect(gameState.player.salvage).toBe(95);
   });
+
+  it('backfills campaign unlocks without replaying rewards for an already completed mission', () => {
+    const bus = new EventBus();
+    const gameState = createNewGameState();
+    gameState.campaign.completedMissions.push('corridor_breach_01');
+    const startingSalvage = gameState.player.salvage;
+    const startingFreeportReputation = gameState.world.factions.freeports.reputation;
+    const consequence = starterMission.consequences[0]?.apply;
+
+    expect(consequence).toBeDefined();
+    if (!consequence) {
+      throw new Error('Starter mission full-success consequence is required for this test.');
+    }
+
+    applyConsequenceBundle(gameState, 'corridor_breach_01', consequence, bus);
+
+    expect(gameState.campaign.availableMissions).toContain('ashwake_wake_02');
+    expect(gameState.campaign.completedMissions).toEqual(['corridor_breach_01']);
+    expect(gameState.player.salvage).toBe(startingSalvage);
+    expect(gameState.world.factions.freeports.reputation).toBe(startingFreeportReputation);
+  });
 });

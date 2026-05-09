@@ -13,6 +13,7 @@ const MOVE_KEYS = {
 export class InputController {
   private readonly pressedKeys = new Set<string>();
   private queuedChoiceOption: 0 | 1 | null = null;
+  private queuedContinueMission = false;
   private pointerWorld: Vector2 | null = null;
   private pointerDown = false;
 
@@ -58,6 +59,12 @@ export class InputController {
     return selection;
   }
 
+  consumeContinueMission(): boolean {
+    const shouldContinue = this.queuedContinueMission;
+    this.queuedContinueMission = false;
+    return shouldContinue;
+  }
+
   private isPressed(keys: Set<string>): boolean {
     for (const key of keys) {
       if (this.pressedKeys.has(key)) {
@@ -77,6 +84,10 @@ export class InputController {
 
     if (event.code === 'Digit2') {
       this.queuedChoiceOption = 1;
+    }
+
+    if (event.code === 'Enter' || event.code === 'KeyN') {
+      this.queuedContinueMission = true;
     }
   };
 

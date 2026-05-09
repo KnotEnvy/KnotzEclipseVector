@@ -9,6 +9,10 @@ export class HudView {
     mission: MissionSnapshot;
     gameState: GameState;
     dialogue: DialogueSnapshot;
+    nextMission?: {
+      title: string;
+      sectorId: string;
+    };
     feed: string[];
   }): void {
     const player = input.entities.find((entity) => entity.type === 'player');
@@ -42,6 +46,18 @@ export class HudView {
                   ${input.mission.activeChoice.options
                     .map((option, index) => `<p>${index + 1}. ${option.label}</p>`)
                     .join('')}
+                </div>`
+              : ''
+          }
+          ${
+            input.mission.phase === 'resolved'
+              ? `<div class="hud-choice">
+                  ${
+                    input.nextMission
+                      ? `<p>Next: ${input.nextMission.title} / ${sectorLabel(input.nextMission.sectorId)}</p>
+                         <p>Press Enter or N to launch.</p>`
+                      : '<p>No additional missions are currently unlocked.</p>'
+                  }
                 </div>`
               : ''
           }

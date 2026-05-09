@@ -33,10 +33,11 @@ The project is now a browser-runnable TypeScript game foundation using Vite and 
 - Declarative mission runtime with a destroy objective and a branchable choice-gate objective.
 - First enemy archetype registry and data-driven mission encounter spawning. The starter fracture drone is now authored content and instantiated from `mission.encounterSequence`.
 - Narrative consequence application through a structured consequence bundle.
-- Campaign mission unlock consequences now append follow-up missions into `availableMissions`; completing `corridor_breach_01` unlocks `ashwake_wake_02`.
+- Campaign mission unlock consequences now append follow-up missions into `availableMissions`; completing or replay-resolving `corridor_breach_01` unlocks `ashwake_wake_02` without replaying rewards.
 - Faction, sector, progression, and save state changes applied through service boundaries.
 - LocalStorage-backed versioned save shell.
 - DOM HUD layered over a Pixi playfield.
+- Lightweight post-mission continuation flow: after a mission resolves, the HUD shows the next unlocked mission and `Enter` or `N` launches it without reloading the page.
 - Starter content registry with boot-time validation.
 - Dedicated content validation CLI exposed through `npm run validate:content`.
 - Content validation now compiles the authored JSON Schema mirrors with Ajv 8 and validates starter missions, ships, weapons, status effects, factions, sectors, and the current initial save shell against those schemas.
@@ -66,6 +67,7 @@ Controls:
 - Aim: mouse
 - Fire: left mouse or `Space`
 - Choice selection: `1` or `2` when the mission choice appears
+- Continue to next unlocked mission after resolution: `Enter` or `N`
 
 ## Architecture Rules Already Enforced
 
@@ -81,6 +83,7 @@ Controls:
 - Weapon status references are validated against authored status definitions.
 - Mission encounter enemy references are validated against authored enemy archetypes, and combat spawn uses encounter data rather than hardcoded enemy construction.
 - Bootstrap selects the first available campaign mission that has not already been completed.
+- Mission selection logic lives in `src/app/missionSelection.ts`; app bootstrap uses it for initial mission selection and post-mission continuation, and the selector can derive follow-up mission availability from completed mission consequences when an already-loaded save has stale `availableMissions`.
 - Authored JSON schemas are compiled with the draft 2020-12 Ajv path and applied to starter content objects during content validation.
 - Dialogue is event-driven through `DialogueDirector`; authored lines listen to domain events and the HUD only renders the current dialogue snapshot.
 
@@ -94,6 +97,7 @@ Controls:
 - `src/features/mission/missionRuntime.ts`: mission objective sequencing, choice commands, and outcome generation.
 - `src/features/narrative/narrativeState.ts`: consequence application into persistent game state.
 - `src/features/save/saveService.ts`: save adapter contract, localStorage implementation, and save hydration/migration entry point.
+- `src/app/missionSelection.ts`: next unlocked mission selection helpers for boot and post-mission continuation.
 - `src/data/missions.ts`: current starter mission content.
 - `src/data/enemies.ts`: current enemy archetype content used by mission encounter spawning.
 - `src/data/dialogues.ts`: current starter mission dialogue/comms content.
@@ -125,10 +129,10 @@ Current known gate result from the latest implementation pass:
 - `npm run lint`: passing
 - `npm run format`: passing
 - `npm run validate:content`: passing
-- `npm test`: passing, 8 files and 21 tests
+- `npm test`: passing, 9 files and 25 tests
 - `npm run build`: passing
 
-Build caveat: Vite currently warns that the main JS chunk is just over 500 kB after minification. The latest observed build reported about 522.85 kB. This is mostly expected from PixiJS at this early stage, but renderer/app code-splitting should be addressed before content and presentation scale up.
+Build caveat: Vite currently warns that the main JS chunk is just over 500 kB after minification. The latest observed build reported about 524.27 kB. This is mostly expected from PixiJS at this early stage, but renderer/app code-splitting should be addressed before content and presentation scale up.
 
 ## Known Risks And Caveats
 
@@ -146,8 +150,8 @@ Build caveat: Vite currently warns that the main JS chunk is just over 500 kB af
 
 ## Current Next 10 Tasks
 
-1. Implement a lightweight mission-select or post-mission hub panel so Alpha testers can continue after mission resolution without reloading.
-2. Add a third small mission or first contract-template prototype to prove repeatable mission authoring beyond hand-authored story beats.
+1. Add a third small mission or first contract-template prototype to prove repeatable mission authoring beyond hand-authored story beats.
+2. Add a slightly richer mission-select/post-mission panel with mission title, sector, completed missions, and available rewards once the loop needs more than one next mission.
 3. Tighten the remaining permissive schema sections for consequence bundles, dialogue trigger filters, enemy encounter variants, and nested save-world faction/sector maps.
 4. Implement an IndexedDB save adapter while preserving the current save service contract and migration entry point.
 5. Split `combatSimulation.ts` into movement, weapon, projectile, damage, lifecycle, spawn, and status modules with focused tests.

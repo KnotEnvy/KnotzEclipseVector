@@ -10,6 +10,8 @@ export function applyConsequenceBundle(
   consequence: ConsequenceBundle,
   eventBus?: EventBus,
 ): void {
+  applyCampaignUnlocks(gameState, consequence);
+
   if (gameState.campaign.completedMissions.includes(missionId)) {
     return;
   }
@@ -20,12 +22,6 @@ export function applyConsequenceBundle(
 
   for (const [counter, delta] of Object.entries(consequence.narrative?.incrementCounters ?? {})) {
     gameState.story.counters[counter] = (gameState.story.counters[counter] ?? 0) + delta;
-  }
-
-  for (const missionToUnlock of consequence.campaign?.unlockMissions ?? []) {
-    if (!gameState.campaign.availableMissions.includes(missionToUnlock)) {
-      gameState.campaign.availableMissions.push(missionToUnlock);
-    }
   }
 
   if (consequence.faction?.repDelta) {
@@ -63,6 +59,14 @@ export function applyConsequenceBundle(
   }
 
   gameState.campaign.completedMissions.push(missionId);
+}
+
+function applyCampaignUnlocks(gameState: GameState, consequence: ConsequenceBundle): void {
+  for (const missionToUnlock of consequence.campaign?.unlockMissions ?? []) {
+    if (!gameState.campaign.availableMissions.includes(missionToUnlock)) {
+      gameState.campaign.availableMissions.push(missionToUnlock);
+    }
+  }
 }
 
 function applySectorDelta(

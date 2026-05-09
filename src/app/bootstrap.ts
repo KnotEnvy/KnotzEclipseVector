@@ -13,6 +13,11 @@ import { PixiRenderer } from '@/rendering/PixiRenderer';
 import type { EntitySnapshot, MissionDefinition, SaveGameRoot } from '@/types/contracts';
 import { HudView } from './hud';
 import { InputController } from './input';
+import {
+  getNextMissionSummary,
+  selectCurrentMission,
+  selectNextUnlockedMission,
+} from './missionSelection';
 
 export async function bootstrapGame(root: HTMLElement): Promise<void> {
   root.innerHTML = `
@@ -24,7 +29,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
 
   const pixiHost = requireElement(root, '.pixi-host');
   const hudRoot = requireElement(root, '.hud');
-  const eventFeed: string[] = ['Mission loaded: Corridor Breach.'];
+  const eventFeed: string[] = [];
 
   const eventBus = new EventBus();
   const content = createContentRegistry();
@@ -39,25 +44,38 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
   const saveService = new SaveService(new LocalStorageSaveAdapter(), eventBus);
   const saveGame = await saveService.loadOrCreate();
   const ship = content.ships.get(saveGame.game.player.shipId);
-  const missionDef = selectCurrentMission(saveGame, content.missions);
+  const initialMission = selectCurrentMission(saveGame, content.missions);
 
-  if (!ship || !missionDef) {
+  if (!ship || !initialMission) {
     throw new Error('Starter ship or mission content is missing.');
   }
 
-  const combatState = createCombatState(content, ship, missionDef);
-  const missionRuntime = new MissionRuntime(missionDef, eventBus, {
-    seed: saveGame.debug.campaignSeed,
-  });
   const renderer = new PixiRenderer(pixiHost, saveGame.settings.qualityTier, eventBus);
   const hud = new HudView(hudRoot);
   const input = new InputController(pixiHost);
   const audio = new AudioDirector(eventBus);
-  const dialogue = new DialogueDirector(
-    [...content.dialogueNodes.values()],
-    eventBus,
-    missionDef.id,
-  );
+
+  let missionDef = initialMission;
+  let combatState = createCombatState(content, ship, missionDef);
+  let missionRuntime = new MissionRuntime(missionDef, eventBus, {
+    seed: saveGame.debug.campaignSeed,
+  });
+  let dialogue = new DialogueDirector([...content.dialogueNodes.values()], eventBus, missionDef.id);
+  let latestEntities: EntitySnapshot[] = snapshotCombat(combatState);
+  let latestMission = missionRuntime.snapshot();
+
+  const launchMission = (nextMission: MissionDefinition): void => {
+    dialogue.destroy();
+    missionDef = nextMission;
+    combatState = createCombatState(content, ship, missionDef);
+    missionRuntime = new MissionRuntime(missionDef, eventBus, {
+      seed: saveGame.debug.campaignSeed,
+    });
+    dialogue = new DialogueDirector([...content.dialogueNodes.values()], eventBus, missionDef.id);
+    latestEntities = snapshotCombat(combatState);
+    latestMission = missionRuntime.snapshot();
+    missionRuntime.start();
+  };
 
   wireEventFeed(eventBus, eventFeed, saveGame, saveService);
   eventBus.subscribe('combat.entity_destroyed', (event) => missionRuntime.handleEvent(event));
@@ -77,15 +95,20 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
   });
   missionRuntime.start();
 
-  let latestEntities: EntitySnapshot[] = snapshotCombat(combatState);
-  let latestMission = missionRuntime.snapshot();
-
   const loop = new FixedStepGameLoop(
     {
       update: (deltaMs) => {
         const player = combatState.registry.get(combatState.playerId);
         const command = input.getCommand(player?.transform.position ?? { x: 0, y: 0 });
         const choiceSelection = input.consumeChoiceSelection();
+        const continueMission = input.consumeContinueMission();
+
+        if (missionRuntime.snapshot().phase === 'resolved' && continueMission) {
+          const nextMission = selectNextUnlockedMission(saveGame, content.missions);
+          if (nextMission) {
+            launchMission(nextMission);
+          }
+        }
 
         tickCombat(combatState, command, content, eventBus, deltaMs);
         const activeChoice = missionRuntime.snapshot().activeChoice;
@@ -116,6 +139,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
           mission: latestMission,
           gameState: saveGame.game,
           dialogue: dialogue.snapshot(),
+          nextMission: getNextMissionSummary(saveGame, content.missions),
           feed: eventFeed,
         });
       },
@@ -150,6 +174,9 @@ function wireEventFeed(
       `Damage: ${event.payload.amount} ${event.payload.damageType} hit ${event.payload.targetId}.`,
     );
   });
+  eventBus.subscribe('mission.loaded', (event) => {
+    push(`Mission loaded: ${event.payload.missionId.replaceAll('_', ' ')}.`);
+  });
   eventBus.subscribe('combat.entity_destroyed', (event) => {
     push(`Destroyed: ${event.payload.entityId}.`);
   });
@@ -166,21 +193,6 @@ function wireEventFeed(
   window.setInterval(() => {
     void saveService.save(saveGame);
   }, 30000);
-}
-
-function selectCurrentMission(
-  saveGame: SaveGameRoot,
-  missions: ReadonlyMap<string, MissionDefinition>,
-): MissionDefinition | undefined {
-  const nextAvailableMissionId = saveGame.game.campaign.availableMissions.find(
-    (missionId) => !saveGame.game.campaign.completedMissions.includes(missionId),
-  );
-  if (nextAvailableMissionId) {
-    return missions.get(nextAvailableMissionId);
-  }
-
-  const fallbackMissionId = saveGame.game.campaign.availableMissions[0];
-  return fallbackMissionId ? missions.get(fallbackMissionId) : undefined;
 }
 
 function requireElement(root: HTMLElement, selector: string): HTMLElement {
