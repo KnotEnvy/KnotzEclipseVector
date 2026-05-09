@@ -1,0 +1,12 @@
+export type MissionId = string;
+export type EntityId = string;
+export type SectorId = string;
+export type FactionId = string;
+export type ChoiceId = string;
+export type FlagKey = string;
+export type ContentVersion = string;
+export type WeaponId = string;
+export type ShipId = string;
+export type StatusEffectId = string;
+export type ObjectiveId = string;
+export type SaveSlotId = string;

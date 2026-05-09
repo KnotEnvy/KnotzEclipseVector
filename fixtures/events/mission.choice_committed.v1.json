@@ -1,0 +1,13 @@
+{
+  "type": "mission.choice_committed",
+  "version": 1,
+  "timestampMs": 5000,
+  "missionId": "corridor_breach_01",
+  "actorId": null,
+  "payload": {
+    "choiceId": "corridor_breach_recovery_doctrine",
+    "selectedOption": "stabilize_civilian_lanes",
+    "source": "test",
+    "resultingFlags": ["story.act1.prioritized_civilian_stability"]
+  }
+}

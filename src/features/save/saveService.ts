@@ -1,0 +1,127 @@
+import type { EventBus } from '@/core/eventBus';
+import { GAME_CONFIG } from '@/config/gameConfig';
+import { createNewGameState } from '@/game/createGameState';
+import type { SaveGameRoot, SaveSlotId } from '@/types/contracts';
+
+const SAVE_VERSION = 1;
+
+export interface SaveStorageAdapter {
+  loadSlot(slotId: SaveSlotId): Promise<SaveGameRoot | null>;
+  saveSlot(slotId: SaveSlotId, saveGame: SaveGameRoot): Promise<void>;
+  listSlots(): Promise<Array<SaveGameRoot['meta']>>;
+  deleteSlot(slotId: SaveSlotId): Promise<void>;
+}
+
+export class LocalStorageSaveAdapter implements SaveStorageAdapter {
+  private readonly prefix = 'eclipse-vector.save.';
+
+  async loadSlot(slotId: SaveSlotId): Promise<SaveGameRoot | null> {
+    const raw = localStorage.getItem(this.key(slotId));
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isSaveGameRoot(parsed)) {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  async saveSlot(slotId: SaveSlotId, saveGame: SaveGameRoot): Promise<void> {
+    localStorage.setItem(this.key(slotId), JSON.stringify(saveGame));
+  }
+
+  async listSlots(): Promise<Array<SaveGameRoot['meta']>> {
+    const slots: Array<SaveGameRoot['meta']> = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith(this.prefix)) {
+        continue;
+      }
+
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        continue;
+      }
+
+      const parsed = JSON.parse(raw) as unknown;
+      if (isSaveGameRoot(parsed)) {
+        slots.push(parsed.meta);
+      }
+    }
+
+    return slots;
+  }
+
+  async deleteSlot(slotId: SaveSlotId): Promise<void> {
+    localStorage.removeItem(this.key(slotId));
+  }
+
+  private key(slotId: SaveSlotId): string {
+    return `${this.prefix}${slotId}`;
+  }
+}
+
+export class SaveService {
+  constructor(
+    private readonly adapter: SaveStorageAdapter,
+    private readonly eventBus: EventBus,
+  ) {}
+
+  async loadOrCreate(slotId = GAME_CONFIG.save.defaultSlotId): Promise<SaveGameRoot> {
+    const existing = await this.adapter.loadSlot(slotId);
+    if (existing) {
+      return existing;
+    }
+
+    return createInitialSave(slotId);
+  }
+
+  async save(saveGame: SaveGameRoot): Promise<void> {
+    saveGame.meta.updatedAt = new Date().toISOString();
+    await this.adapter.saveSlot(saveGame.meta.slotId, saveGame);
+    this.eventBus.publish('save.completed', {
+      slotId: saveGame.meta.slotId,
+      version: saveGame.saveVersion,
+      timestamp: saveGame.meta.updatedAt,
+    });
+  }
+}
+
+export function createInitialSave(slotId: SaveSlotId): SaveGameRoot {
+  const now = new Date().toISOString();
+
+  return {
+    saveVersion: SAVE_VERSION,
+    meta: {
+      slotId,
+      createdAt: now,
+      updatedAt: now,
+      playtimeMs: 0,
+      buildHash: GAME_CONFIG.save.buildHash,
+    },
+    game: createNewGameState(),
+    settings: {
+      qualityTier: 'recommended',
+      reducedMotion: false,
+      masterVolume: 0.8,
+      controlsProfileId: 'default-keyboard-mouse',
+    },
+    debug: {
+      campaignSeed: 20260507,
+    },
+  };
+}
+
+function isSaveGameRoot(value: unknown): value is SaveGameRoot {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<SaveGameRoot>;
+  return (
+    candidate.saveVersion === SAVE_VERSION && Boolean(candidate.meta) && Boolean(candidate.game)
+  );
+}

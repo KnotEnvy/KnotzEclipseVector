@@ -1,0 +1,17 @@
+{
+  "type": "combat.damage_applied",
+  "version": 1,
+  "timestampMs": 1000,
+  "missionId": "corridor_breach_01",
+  "actorId": "player",
+  "payload": {
+    "targetId": "enemy_fracture_drone_01",
+    "sourceId": "player",
+    "amount": 22,
+    "damageType": "energy",
+    "shielded": true,
+    "crit": false,
+    "remainingHull": 80,
+    "remainingShield": 8
+  }
+}

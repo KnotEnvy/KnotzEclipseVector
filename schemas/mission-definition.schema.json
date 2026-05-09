@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eclipse-vector.local/schemas/mission-definition.schema.json",
+  "title": "Eclipse Vector MissionDefinition",
+  "type": "object",
+  "required": [
+    "id",
+    "version",
+    "chapterId",
+    "sectorId",
+    "title",
+    "briefing",
+    "tags",
+    "objectives",
+    "encounterSequence",
+    "rewards",
+    "consequences"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "chapterId": { "type": "string", "minLength": 1 },
+    "sectorId": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+    "title": { "type": "string", "minLength": 1 },
+    "briefing": { "type": "string", "minLength": 1 },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "objectives": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["id", "kind", "title", "targetEntityType", "requiredCount"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+              "kind": { "const": "destroy" },
+              "title": { "type": "string", "minLength": 1 },
+              "targetEntityType": { "enum": ["player", "enemy", "projectile", "hazard"] },
+              "requiredCount": { "type": "integer", "minimum": 1 }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["id", "kind", "title", "durationMs"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+              "kind": { "const": "survive" },
+              "title": { "type": "string", "minLength": 1 },
+              "durationMs": { "type": "integer", "minimum": 1 }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["id", "kind", "title", "choiceId", "prompt", "options"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+              "kind": { "const": "choice_gate" },
+              "title": { "type": "string", "minLength": 1 },
+              "choiceId": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+              "prompt": { "type": "string", "minLength": 1 },
+              "options": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "type": "object",
+                  "required": ["id", "label", "consequence", "resultingFlags"],
+                  "properties": {
+                    "id": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+                    "label": { "type": "string", "minLength": 1 },
+                    "consequence": { "type": "object" },
+                    "resultingFlags": { "type": "array", "items": { "type": "string" } }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "encounterSequence": { "type": "array" },
+    "rewards": {
+      "type": "object",
+      "required": ["salvage", "unlocks", "repeatable"],
+      "properties": {
+        "salvage": { "type": "integer", "minimum": 0 },
+        "unlocks": { "type": "array", "items": { "type": "string" } },
+        "repeatable": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "consequences": { "type": "array", "minItems": 1 }
+  },
+  "additionalProperties": false
+}
