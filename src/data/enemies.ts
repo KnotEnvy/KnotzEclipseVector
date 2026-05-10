@@ -14,4 +14,17 @@ export const starterEnemyArchetypes: EnemyArchetypeDefinition[] = [
     },
     tags: ['enemy', 'fracture', 'drone', 'mvp'],
   },
+  {
+    id: 'fracture_scout',
+    version: '1.0.0',
+    displayName: 'Fracture Scout',
+    factionId: 'fracture',
+    radius: 18,
+    stats: {
+      hull: 45,
+      shield: 15,
+      maxHeat: 80,
+    },
+    tags: ['enemy', 'fracture', 'scout', 'contract'],
+  },
 ];

@@ -1,6 +1,6 @@
 import type { EventBus } from '@/core/eventBus';
 import { GAME_CONFIG } from '@/config/gameConfig';
-import { ashwakeWakeMission, starterMission } from '@/data/missions';
+import { starterMissions } from '@/data/missions';
 import { createNewGameState } from '@/game/createGameState';
 import type { SaveGameRoot, SaveSlotId } from '@/types/contracts';
 
@@ -12,6 +12,13 @@ export interface SaveStorageAdapter {
   listSlots(): Promise<Array<SaveGameRoot['meta']>>;
   deleteSlot(slotId: SaveSlotId): Promise<void>;
 }
+
+type IndexedDbSaveAdapterOptions = {
+  databaseName?: string;
+  storeName?: string;
+  indexedDbFactory?: IDBFactory;
+  fallbackAdapter?: SaveStorageAdapter;
+};
 
 export class LocalStorageSaveAdapter implements SaveStorageAdapter {
   private readonly prefix = 'eclipse-vector.save.';
@@ -58,6 +65,177 @@ export class LocalStorageSaveAdapter implements SaveStorageAdapter {
   private key(slotId: SaveSlotId): string {
     return `${this.prefix}${slotId}`;
   }
+}
+
+export class IndexedDbSaveAdapter implements SaveStorageAdapter {
+  private readonly databaseName: string;
+  private readonly storeName: string;
+  private readonly indexedDbFactory: IDBFactory | undefined;
+  private readonly fallbackAdapter: SaveStorageAdapter | undefined;
+  private dbPromise: Promise<IDBDatabase> | undefined;
+
+  constructor(options: IndexedDbSaveAdapterOptions = {}) {
+    this.databaseName = options.databaseName ?? 'eclipse-vector-saves';
+    this.storeName = options.storeName ?? 'slots';
+    this.indexedDbFactory = options.indexedDbFactory;
+    this.fallbackAdapter = options.fallbackAdapter;
+  }
+
+  async loadSlot(slotId: SaveSlotId): Promise<SaveGameRoot | null> {
+    return this.withFallback(
+      async () => {
+        const value = await this.runStoreRequest('readonly', (store) => store.get(slotId));
+        const save = hydrateSaveGameRoot(value);
+        if (save) {
+          return save;
+        }
+
+        const fallbackSave = await this.fallbackAdapter?.loadSlot(slotId);
+        if (fallbackSave) {
+          await this.saveSlot(slotId, fallbackSave);
+        }
+
+        return fallbackSave ?? null;
+      },
+      () => this.fallbackAdapter?.loadSlot(slotId) ?? Promise.resolve(null),
+    );
+  }
+
+  async saveSlot(slotId: SaveSlotId, saveGame: SaveGameRoot): Promise<void> {
+    await this.withFallback(
+      async () => {
+        await this.runStoreRequest('readwrite', (store) =>
+          store.put(structuredClone(saveGame), slotId),
+        );
+      },
+      () => this.fallbackAdapter?.saveSlot(slotId, saveGame) ?? Promise.resolve(),
+    );
+  }
+
+  async listSlots(): Promise<Array<SaveGameRoot['meta']>> {
+    return this.withFallback(
+      async () => {
+        const saves = await this.runStoreRequest('readonly', (store) => store.getAll());
+        const hydratedSaves = saves
+          .map((save) => hydrateSaveGameRoot(save))
+          .filter((save): save is SaveGameRoot => Boolean(save));
+        const slotsById = new Map<string, SaveGameRoot['meta']>();
+
+        for (const save of hydratedSaves) {
+          slotsById.set(save.meta.slotId, save.meta);
+        }
+
+        for (const fallbackMeta of (await this.fallbackAdapter?.listSlots()) ?? []) {
+          if (!slotsById.has(fallbackMeta.slotId)) {
+            slotsById.set(fallbackMeta.slotId, fallbackMeta);
+          }
+        }
+
+        return [...slotsById.values()].sort((left, right) =>
+          right.updatedAt.localeCompare(left.updatedAt),
+        );
+      },
+      () => this.fallbackAdapter?.listSlots() ?? Promise.resolve([]),
+    );
+  }
+
+  async deleteSlot(slotId: SaveSlotId): Promise<void> {
+    await this.withFallback(
+      async () => {
+        await this.runStoreRequest('readwrite', (store) => store.delete(slotId));
+        await this.fallbackAdapter?.deleteSlot(slotId);
+      },
+      () => this.fallbackAdapter?.deleteSlot(slotId) ?? Promise.resolve(),
+    );
+  }
+
+  private async withFallback<T>(primary: () => Promise<T>, fallback: () => Promise<T>): Promise<T> {
+    try {
+      return await primary();
+    } catch (error) {
+      if (!this.fallbackAdapter) {
+        throw error;
+      }
+
+      return fallback();
+    }
+  }
+
+  private async runStoreRequest<T>(
+    mode: IDBTransactionMode,
+    createRequest: (store: IDBObjectStore) => IDBRequest<T>,
+  ): Promise<T> {
+    const db = await this.openDb();
+
+    return new Promise<T>((resolve, reject) => {
+      const transaction = db.transaction(this.storeName, mode);
+      const store = transaction.objectStore(this.storeName);
+      const request = createRequest(store);
+      let result: T | undefined;
+
+      request.onsuccess = () => {
+        result = request.result;
+      };
+      request.onerror = () => {
+        reject(request.error ?? new Error('IndexedDB save request failed.'));
+      };
+      transaction.oncomplete = () => {
+        resolve(result as T);
+      };
+      transaction.onerror = () => {
+        reject(transaction.error ?? request.error ?? new Error('IndexedDB transaction failed.'));
+      };
+      transaction.onabort = () => {
+        reject(transaction.error ?? request.error ?? new Error('IndexedDB transaction aborted.'));
+      };
+    });
+  }
+
+  private async openDb(): Promise<IDBDatabase> {
+    if (this.dbPromise) {
+      return this.dbPromise;
+    }
+
+    const indexedDb = this.indexedDbFactory ?? globalThis.indexedDB;
+    if (!indexedDb) {
+      throw new Error('IndexedDB is not available in this browser.');
+    }
+
+    this.dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDb.open(this.databaseName, 1);
+
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName);
+        }
+      };
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        this.dbPromise = undefined;
+        reject(request.error ?? new Error('Failed to open IndexedDB save database.'));
+      };
+      request.onblocked = () => {
+        this.dbPromise = undefined;
+        reject(new Error('IndexedDB save database upgrade was blocked.'));
+      };
+    });
+
+    return this.dbPromise;
+  }
+}
+
+export function createBrowserSaveAdapter(): SaveStorageAdapter {
+  const localStorageAdapter = new LocalStorageSaveAdapter();
+  if (!globalThis.indexedDB) {
+    return localStorageAdapter;
+  }
+
+  return new IndexedDbSaveAdapter({
+    fallbackAdapter: localStorageAdapter,
+  });
 }
 
 export class SaveService {
@@ -160,11 +338,19 @@ function normalizeKnownContent(saveGame: SaveGameRoot): SaveGameRoot {
     ...saveGame.game.world.factions,
   };
 
-  if (
-    saveGame.game.campaign.completedMissions.includes(starterMission.id) &&
-    !saveGame.game.campaign.availableMissions.includes(ashwakeWakeMission.id)
-  ) {
-    saveGame.game.campaign.availableMissions.push(ashwakeWakeMission.id);
+  for (const completedMissionId of saveGame.game.campaign.completedMissions) {
+    const completedMission = starterMissions.find((mission) => mission.id === completedMissionId);
+    for (const consequence of completedMission?.consequences ?? []) {
+      if (consequence.when !== 'full_success') {
+        continue;
+      }
+
+      for (const unlockedMissionId of consequence.apply.campaign?.unlockMissions ?? []) {
+        if (!saveGame.game.campaign.availableMissions.includes(unlockedMissionId)) {
+          saveGame.game.campaign.availableMissions.push(unlockedMissionId);
+        }
+      }
+    }
   }
 
   return saveGame;

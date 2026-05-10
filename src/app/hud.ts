@@ -1,4 +1,5 @@
 import type { DialogueSnapshot } from '@/features/dialogue/dialogueDirector';
+import type { MissionPanelSummary } from './missionSelection';
 import type { EntitySnapshot, GameState, MissionSnapshot } from '@/types/contracts';
 
 export class HudView {
@@ -7,12 +8,10 @@ export class HudView {
   update(input: {
     entities: EntitySnapshot[];
     mission: MissionSnapshot;
+    currentMission: MissionPanelSummary;
     gameState: GameState;
     dialogue: DialogueSnapshot;
-    nextMission?: {
-      title: string;
-      sectorId: string;
-    };
+    nextMission?: MissionPanelSummary;
     feed: string[];
   }): void {
     const player = input.entities.find((entity) => entity.type === 'player');
@@ -29,16 +28,25 @@ export class HudView {
           ${meter('Shield', player?.shield ?? 0, player?.maxShield ?? 1)}
           <div class="hud-help">WASD or arrows move. Mouse aims. Space or left mouse fires.</div>
         </section>
-        <section class="hud-panel" aria-label="Mission objectives">
-          <h2>${input.mission.phase === 'resolved' ? 'Mission Resolved' : 'Mission'}</h2>
+        <section class="hud-panel hud-mission" aria-label="Mission objectives">
+          <h2>${input.mission.phase === 'resolved' ? 'Mission Resolved' : input.currentMission.title}</h2>
+          <p class="hud-briefing">${input.currentMission.briefing}</p>
           <ul class="hud-list">
             ${input.mission.objectives
               .map(
                 (objective) =>
-                  `<li>${objective.state === 'completed' ? '[x]' : '[ ]'} ${objective.id.replaceAll('_', ' ')} (${Math.round(objective.progress)}/${Math.round(objective.required)})</li>`,
+                  `<li>${objective.state === 'completed' ? '[x]' : '[ ]'} ${
+                    input.currentMission.objectiveTitles[objective.id] ??
+                    objective.id.replaceAll('_', ' ')
+                  } (${formatProgress(objective.progress, objective.required)})</li>`,
               )
               .join('')}
           </ul>
+          <div class="hud-mission__meta">
+            <span>${sectorLabel(input.currentMission.sectorId)}</span>
+            <span>${input.currentMission.salvage} salvage</span>
+            <span>${input.gameState.campaign.completedMissions.length} complete</span>
+          </div>
           ${
             input.mission.activeChoice
               ? `<div class="hud-choice">
@@ -55,6 +63,11 @@ export class HudView {
                   ${
                     input.nextMission
                       ? `<p>Next: ${input.nextMission.title} / ${sectorLabel(input.nextMission.sectorId)}</p>
+                         <p>Reward: ${input.nextMission.salvage} salvage${
+                           input.nextMission.unlocks.length > 0
+                             ? ` + ${input.nextMission.unlocks.map(formatUnlockLabel).join(', ')}`
+                             : ''
+                         }</p>
                          <p>Press Enter or N to launch.</p>`
                       : '<p>No additional missions are currently unlocked.</p>'
                   }
@@ -95,6 +108,21 @@ export class HudView {
 
 function sectorLabel(sectorId: string): string {
   return sectorId
+    .split('_')
+    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+    .join(' ');
+}
+
+function formatProgress(progress: number, required: number): string {
+  if (required >= 1000) {
+    return `${Math.ceil(Math.max(0, required - progress) / 1000)}s`;
+  }
+
+  return `${Math.round(progress)}/${Math.round(required)}`;
+}
+
+function formatUnlockLabel(unlock: string): string {
+  return unlock
     .split('_')
     .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
     .join(' ');

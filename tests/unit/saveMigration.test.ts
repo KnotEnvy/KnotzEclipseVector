@@ -26,12 +26,13 @@ describe('save hydration and migration', () => {
   it('backfills current saves with newly authored follow-up content', () => {
     const save = createInitialSave('A');
     delete save.game.world.sectors.ashwake_cleft;
-    save.game.campaign.completedMissions.push('corridor_breach_01');
+    save.game.campaign.completedMissions.push('corridor_breach_01', 'ashwake_wake_02');
 
     const hydrated = hydrateSaveGameRoot(save);
 
     expect(hydrated?.game.world.sectors.ashwake_cleft?.sectorId).toBe('ashwake_cleft');
     expect(hydrated?.game.campaign.availableMissions).toContain('ashwake_wake_02');
+    expect(hydrated?.game.campaign.availableMissions).toContain('lattice_rescue_contract_03');
   });
 
   it('rejects invalid save payloads', () => {

@@ -8,12 +8,13 @@ import { createCombatState, snapshotCombat, tickCombat } from '@/features/combat
 import { DialogueDirector } from '@/features/dialogue/dialogueDirector';
 import { MissionRuntime } from '@/features/mission/missionRuntime';
 import { applyConsequenceBundle } from '@/features/narrative/narrativeState';
-import { LocalStorageSaveAdapter, SaveService } from '@/features/save/saveService';
+import { SaveService, createBrowserSaveAdapter } from '@/features/save/saveService';
 import { PixiRenderer } from '@/rendering/PixiRenderer';
 import type { EntitySnapshot, MissionDefinition, SaveGameRoot } from '@/types/contracts';
 import { HudView } from './hud';
 import { InputController } from './input';
 import {
+  getMissionPanelSummary,
   getNextMissionSummary,
   selectCurrentMission,
   selectNextUnlockedMission,
@@ -41,7 +42,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
         .join('; ')}`,
     );
   }
-  const saveService = new SaveService(new LocalStorageSaveAdapter(), eventBus);
+  const saveService = new SaveService(createBrowserSaveAdapter(), eventBus);
   const saveGame = await saveService.loadOrCreate();
   const ship = content.ships.get(saveGame.game.player.shipId);
   const initialMission = selectCurrentMission(saveGame, content.missions);
@@ -137,6 +138,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
         hud.update({
           entities: latestEntities,
           mission: latestMission,
+          currentMission: getMissionPanelSummary(missionDef),
           gameState: saveGame.game,
           dialogue: dialogue.snapshot(),
           nextMission: getNextMissionSummary(saveGame, content.missions),

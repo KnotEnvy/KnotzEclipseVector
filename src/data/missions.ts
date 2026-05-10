@@ -261,9 +261,155 @@ export const ashwakeWakeMission: MissionDefinition = {
           unlocks: ['contract_template_anomaly_survey'],
           idempotencyKey: 'ashwake_wake_02_full_success_rewards',
         },
+        campaign: {
+          unlockMissions: ['lattice_rescue_contract_03'],
+        },
       },
     },
   ],
 };
 
-export const starterMissions: MissionDefinition[] = [starterMission, ashwakeWakeMission];
+export const latticeRescueContractMission: MissionDefinition = {
+  id: 'lattice_rescue_contract_03',
+  version: '1.0.0',
+  chapterId: 'act1',
+  sectorId: 'freeport_lattice',
+  title: 'Lattice Rescue Contract',
+  briefing:
+    'Freeport dispatch has a repeatable rescue template ready for field proof. Clear two fracture scouts from a civilian lane, hold the lane while evac telemetry syncs, then choose the recovery priority.',
+  tags: ['mvp', 'contract-template', 'multi-spawn', 'survive-objective'],
+  objectives: [
+    {
+      id: 'destroy_fracture_scouts',
+      kind: 'destroy',
+      title: 'Destroy the fracture scout pair',
+      targetEntityType: 'enemy',
+      requiredCount: 2,
+    },
+    {
+      id: 'hold_rescue_lane',
+      kind: 'survive',
+      title: 'Hold the rescue lane during evac sync',
+      durationMs: 4500,
+    },
+    {
+      id: 'choose_rescue_priority',
+      kind: 'choice_gate',
+      title: 'Choose the rescue priority',
+      choiceId: 'lattice_rescue_contract_priority',
+      prompt:
+        'The evacuation lane is open. Do you prioritize civilian convoy routing or salvage recovery?',
+      options: [
+        {
+          id: 'prioritize_convoy_routing',
+          label: 'Prioritize convoy routing',
+          resultingFlags: ['story.act1.prioritized_convoy_routing'],
+          consequence: {
+            narrative: {
+              setFlags: {
+                'story.act1.prioritized_convoy_routing': true,
+              },
+            },
+            faction: {
+              repDelta: {
+                freeports: 5,
+              },
+            },
+            sector: {
+              sectorId: 'freeport_lattice',
+              delta: {
+                civilianStability: 2,
+                localSentiment: 1,
+              },
+              reason: 'The rescue lane stayed focused on convoy extraction and public trust.',
+            },
+          },
+        },
+        {
+          id: 'secure_salvage_beacons',
+          label: 'Secure salvage beacons',
+          resultingFlags: ['story.act1.secured_rescue_salvage_beacons'],
+          consequence: {
+            narrative: {
+              setFlags: {
+                'story.act1.secured_rescue_salvage_beacons': true,
+              },
+            },
+            faction: {
+              repDelta: {
+                freeports: 2,
+                ashwake: 1,
+              },
+            },
+            inventory: {
+              salvage: 35,
+              unlocks: ['salvage_beacon_calibration'],
+              idempotencyKey: 'lattice_rescue_contract_03_salvage_beacons',
+            },
+          },
+        },
+      ],
+    },
+  ],
+  encounterSequence: [
+    {
+      id: 'fracture_scout_01',
+      kind: 'spawn_enemy',
+      archetypeId: 'fracture_scout',
+      at: { x: 900, y: 260 },
+    },
+    {
+      id: 'fracture_scout_02',
+      kind: 'spawn_enemy',
+      archetypeId: 'fracture_scout',
+      at: { x: 1030, y: 470 },
+    },
+  ],
+  rewards: {
+    salvage: 70,
+    unlocks: ['contract_template_rescue_pressure_alpha'],
+    repeatable: false,
+  },
+  consequences: [
+    {
+      when: 'full_success',
+      apply: {
+        narrative: {
+          setFlags: {
+            'story.act1.rescue_contract_template_proven': true,
+          },
+          incrementCounters: {
+            'contracts.rescue_templates_completed': 1,
+            'combat.prototype_successes': 1,
+          },
+        },
+        faction: {
+          repDelta: {
+            freeports: 3,
+          },
+        },
+        sector: {
+          sectorId: 'freeport_lattice',
+          delta: {
+            security: 1,
+            anomalyIntensity: -1,
+            infrastructureDamage: -1,
+          },
+          reason:
+            'The first rescue contract template proved the lane can be reopened under pressure.',
+        },
+        inventory: {
+          salvage: 70,
+          unlocks: ['contract_template_rescue_pressure_alpha'],
+          idempotencyKey: 'lattice_rescue_contract_03_full_success_rewards',
+        },
+      },
+    },
+  ],
+};
+
+export const starterMissions: MissionDefinition[] = [
+  starterMission,
+  ashwakeWakeMission,
+  latticeRescueContractMission,
+];

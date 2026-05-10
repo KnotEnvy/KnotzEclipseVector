@@ -119,6 +119,32 @@ button {
   line-height: 1.5;
 }
 
+.hud-mission {
+  width: min(480px, calc(100vw - 32px));
+}
+
+.hud-briefing {
+  margin: 0 0 8px;
+  color: #c6d7e7;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.hud-mission__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.hud-mission__meta span {
+  border: 1px solid rgba(120, 232, 255, 0.18);
+  padding: 2px 6px;
+  color: #d7e9f7;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .hud-feed {
   width: min(420px, calc(100vw - 32px));
   align-self: end;

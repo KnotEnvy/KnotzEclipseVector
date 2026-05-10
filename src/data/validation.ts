@@ -300,6 +300,15 @@ function validateMissionDefinition(
 ): void {
   assertStableId(mission.id, `missions.${mission.id}.id`, issues);
   assertSemver(mission.version, `missions.${mission.id}.version`, issues);
+  assertNonEmptyString(mission.title, `missions.${mission.id}.title`, issues);
+  assertNonEmptyString(mission.briefing, `missions.${mission.id}.briefing`, issues);
+
+  if (mission.objectives.length === 0) {
+    issues.push({
+      path: `missions.${mission.id}.objectives`,
+      message: 'Mission must declare at least one objective.',
+    });
+  }
 
   if (!content.sectors[mission.sectorId]) {
     issues.push({
@@ -311,6 +320,23 @@ function validateMissionDefinition(
   const objectiveIds = new Set<string>();
   for (const objective of mission.objectives) {
     validateObjective(mission, objective, objectiveIds, content, issues);
+  }
+
+  const enemyEncounterCount = mission.encounterSequence.filter(
+    (encounter) => encounter.kind === 'spawn_enemy',
+  ).length;
+  for (const objective of mission.objectives) {
+    if (
+      objective.kind === 'destroy' &&
+      objective.targetEntityType === 'enemy' &&
+      objective.requiredCount > enemyEncounterCount
+    ) {
+      issues.push({
+        path: `missions.${mission.id}.objectives.${objective.id}.requiredCount`,
+        message:
+          'Destroy objective requires more enemies than the mission encounter sequence spawns.',
+      });
+    }
   }
 
   for (const [index, encounter] of mission.encounterSequence.entries()) {
@@ -341,6 +367,11 @@ function validateMissionDefinition(
   assertNonNegativeNumber(
     mission.rewards.salvage,
     `missions.${mission.id}.rewards.salvage`,
+    issues,
+  );
+  validateStableStringList(
+    mission.rewards.unlocks,
+    `missions.${mission.id}.rewards.unlocks`,
     issues,
   );
 
@@ -412,6 +443,14 @@ function validateObjective(
         });
       }
       optionIds.add(option.id);
+      for (const flag of option.resultingFlags) {
+        if (option.consequence.narrative?.setFlags?.[flag] === undefined) {
+          issues.push({
+            path: `${path}.options.${option.id}.resultingFlags.${flag}`,
+            message: 'Choice resulting flags must be set by the option consequence.',
+          });
+        }
+      }
       validateConsequenceBundle(
         option.consequence,
         content,
@@ -465,6 +504,7 @@ function validateConsequenceBundle(
 
   if (bundle.inventory) {
     assertStableId(bundle.inventory.idempotencyKey, `${path}.inventory.idempotencyKey`, issues);
+    validateStableStringList(bundle.inventory.unlocks ?? [], `${path}.inventory.unlocks`, issues);
   }
 
   for (const missionId of bundle.campaign?.unlockMissions ?? []) {
@@ -577,5 +617,24 @@ function assertSemver(value: string, path: string, issues: ContentValidationIssu
       path,
       message: 'Content versions must use semver.',
     });
+  }
+}
+
+function validateStableStringList(
+  values: string[],
+  path: string,
+  issues: ContentValidationIssue[],
+): void {
+  const seen = new Set<string>();
+
+  for (const [index, value] of values.entries()) {
+    assertStableId(value, `${path}.${index}`, issues);
+    if (seen.has(value)) {
+      issues.push({
+        path: `${path}.${index}`,
+        message: `Duplicate value: ${value}`,
+      });
+    }
+    seen.add(value);
   }
 }

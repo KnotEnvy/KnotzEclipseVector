@@ -1,5 +1,16 @@
 import type { MissionDefinition, SaveGameRoot } from '@/types/contracts';
 
+export type MissionPanelSummary = {
+  id: string;
+  title: string;
+  sectorId: string;
+  briefing: string;
+  salvage: number;
+  unlocks: string[];
+  tags: string[];
+  objectiveTitles: Record<string, string>;
+};
+
 export function selectCurrentMission(
   saveGame: SaveGameRoot,
   missions: ReadonlyMap<string, MissionDefinition>,
@@ -24,17 +35,27 @@ export function selectNextUnlockedMission(
   return nextAvailableMissionId ? missions.get(nextAvailableMissionId) : undefined;
 }
 
+export function getMissionPanelSummary(mission: MissionDefinition): MissionPanelSummary {
+  return {
+    id: mission.id,
+    title: mission.title,
+    sectorId: mission.sectorId,
+    briefing: mission.briefing,
+    salvage: mission.rewards.salvage,
+    unlocks: [...mission.rewards.unlocks],
+    tags: [...mission.tags],
+    objectiveTitles: Object.fromEntries(
+      mission.objectives.map((objective) => [objective.id, objective.title]),
+    ),
+  };
+}
+
 export function getNextMissionSummary(
   saveGame: SaveGameRoot,
   missions: ReadonlyMap<string, MissionDefinition>,
-): { title: string; sectorId: string } | undefined {
+): MissionPanelSummary | undefined {
   const nextMission = selectNextUnlockedMission(saveGame, missions);
-  return nextMission
-    ? {
-        title: nextMission.title,
-        sectorId: nextMission.sectorId,
-      }
-    : undefined;
+  return nextMission ? getMissionPanelSummary(nextMission) : undefined;
 }
 
 function getAvailableMissionIds(

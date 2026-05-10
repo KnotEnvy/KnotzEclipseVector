@@ -21,8 +21,12 @@ describe('mission selection', () => {
   it('falls back to the first available mission when every mission is complete', () => {
     const content = createContentRegistry();
     const save = createInitialSave('A');
-    save.game.campaign.availableMissions.push('ashwake_wake_02');
-    save.game.campaign.completedMissions.push('corridor_breach_01', 'ashwake_wake_02');
+    save.game.campaign.availableMissions.push('ashwake_wake_02', 'lattice_rescue_contract_03');
+    save.game.campaign.completedMissions.push(
+      'corridor_breach_01',
+      'ashwake_wake_02',
+      'lattice_rescue_contract_03',
+    );
 
     expect(selectNextUnlockedMission(save, content.missions)).toBeUndefined();
     expect(selectCurrentMission(save, content.missions)?.id).toBe('corridor_breach_01');
@@ -31,9 +35,12 @@ describe('mission selection', () => {
   it('derives follow-up unlocks from completed mission consequences when campaign availability is stale', () => {
     const content = createContentRegistry();
     const save = createInitialSave('A');
-    save.game.campaign.completedMissions.push('corridor_breach_01');
+    save.game.campaign.completedMissions.push('corridor_breach_01', 'ashwake_wake_02');
 
-    expect(selectNextUnlockedMission(save, content.missions)?.id).toBe('ashwake_wake_02');
-    expect(getNextMissionSummary(save, content.missions)?.title).toBe('Ashwake Wake');
+    expect(selectNextUnlockedMission(save, content.missions)?.id).toBe(
+      'lattice_rescue_contract_03',
+    );
+    expect(getNextMissionSummary(save, content.missions)?.title).toBe('Lattice Rescue Contract');
+    expect(getNextMissionSummary(save, content.missions)?.salvage).toBe(70);
   });
 });

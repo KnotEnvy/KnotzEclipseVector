@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createContentRegistry } from '@/data/registry';
 import { validateContentRegistry } from '@/data/validation';
+import type { ObjectiveDefinition } from '@/types/contracts';
 import {
   buildContentValidationReport,
   getContentSchemaFiles,
@@ -77,6 +78,35 @@ describe('content validation', () => {
     expect(result.issues.some((issue) => issue.message.includes('Unknown mission unlock'))).toBe(
       true,
     );
+  });
+
+  it('rejects mission objective and choice consequence drift', () => {
+    const content = createContentRegistry();
+    const mission = content.missions.get('lattice_rescue_contract_03');
+    if (!mission) {
+      throw new Error('Missing contract mission');
+    }
+
+    const destroyObjective = mission.objectives.find(
+      (objective): objective is Extract<ObjectiveDefinition, { kind: 'destroy' }> =>
+        objective.id === 'destroy_fracture_scouts' && objective.kind === 'destroy',
+    );
+    const choiceObjective = mission.objectives.find(
+      (objective): objective is Extract<ObjectiveDefinition, { kind: 'choice_gate' }> =>
+        objective.id === 'choose_rescue_priority' && objective.kind === 'choice_gate',
+    );
+    if (!destroyObjective || !choiceObjective) {
+      throw new Error('Contract mission objectives are required for this test');
+    }
+
+    destroyObjective.requiredCount = 3;
+    choiceObjective.options[0].resultingFlags = ['story.act1.flag_not_set_by_consequence'];
+
+    const result = validateContentRegistry(content);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((issue) => issue.message.includes('more enemies'))).toBe(true);
+    expect(result.issues.some((issue) => issue.message.includes('resulting flags'))).toBe(true);
   });
 
   it('rejects invalid ship and weapon numeric tuning', () => {
