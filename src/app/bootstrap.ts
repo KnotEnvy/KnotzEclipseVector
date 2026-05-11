@@ -14,6 +14,11 @@ import type { EntitySnapshot, MissionDefinition, SaveGameRoot } from '@/types/co
 import { HudView } from './hud';
 import { InputController } from './input';
 import {
+  updateMissionContinuation,
+  shouldHoldCombatForMission,
+  type MissionContinuationState,
+} from './missionFlow';
+import {
   getMissionPanelSummary,
   getNextMissionSummary,
   selectCurrentMission,
@@ -64,6 +69,10 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
   let dialogue = new DialogueDirector([...content.dialogueNodes.values()], eventBus, missionDef.id);
   let latestEntities: EntitySnapshot[] = snapshotCombat(combatState);
   let latestMission = missionRuntime.snapshot();
+  let missionContinuationState: MissionContinuationState = {
+    resolvedElapsedMs: 0,
+  };
+  let autoLaunchRemainingMs: number | undefined;
 
   const launchMission = (nextMission: MissionDefinition): void => {
     dialogue.destroy();
@@ -75,6 +84,10 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
     dialogue = new DialogueDirector([...content.dialogueNodes.values()], eventBus, missionDef.id);
     latestEntities = snapshotCombat(combatState);
     latestMission = missionRuntime.snapshot();
+    missionContinuationState = {
+      resolvedElapsedMs: 0,
+    };
+    autoLaunchRemainingMs = undefined;
     missionRuntime.start();
   };
 
@@ -87,6 +100,9 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
       event.payload.consequence,
       eventBus,
     );
+    missionContinuationState = {
+      resolvedElapsedMs: 0,
+    };
     void saveService.save(saveGame);
   });
 
@@ -101,18 +117,28 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
       update: (deltaMs) => {
         const player = combatState.registry.get(combatState.playerId);
         const command = input.getCommand(player?.transform.position ?? { x: 0, y: 0 });
+        const missionSnapshot = missionRuntime.snapshot();
         const choiceSelection = input.consumeChoiceSelection();
-        const continueMission = input.consumeContinueMission();
+        const continueMission =
+          missionSnapshot.phase === 'resolved' ? input.consumeContinueMission() : false;
+        const nextMission = selectNextUnlockedMission(saveGame, content.missions);
+        const continuation = updateMissionContinuation({
+          state: missionContinuationState,
+          missionPhase: missionSnapshot.phase,
+          deltaMs,
+          requestedContinue: continueMission,
+          hasNextMission: Boolean(nextMission),
+        });
+        missionContinuationState = continuation.state;
+        autoLaunchRemainingMs = continuation.autoLaunchRemainingMs;
 
-        if (missionRuntime.snapshot().phase === 'resolved' && continueMission) {
-          const nextMission = selectNextUnlockedMission(saveGame, content.missions);
-          if (nextMission) {
-            launchMission(nextMission);
-          }
+        if (continuation.shouldLaunchNext && nextMission) {
+          launchMission(nextMission);
+          saveGame.meta.playtimeMs += deltaMs;
+          return;
         }
 
-        tickCombat(combatState, command, content, eventBus, deltaMs);
-        const activeChoice = missionRuntime.snapshot().activeChoice;
+        const activeChoice = missionSnapshot.activeChoice;
         if (activeChoice && choiceSelection !== null) {
           const selectedOption = activeChoice.options[choiceSelection];
           if (selectedOption) {
@@ -124,6 +150,11 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
             });
           }
         }
+
+        if (!shouldHoldCombatForMission(missionSnapshot)) {
+          tickCombat(combatState, command, content, eventBus, deltaMs);
+        }
+
         missionRuntime.tick(deltaMs);
         saveGame.meta.playtimeMs += deltaMs;
 
@@ -142,6 +173,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
           gameState: saveGame.game,
           dialogue: dialogue.snapshot(),
           nextMission: getNextMissionSummary(saveGame, content.missions),
+          autoLaunchRemainingMs,
           feed: eventFeed,
         });
       },

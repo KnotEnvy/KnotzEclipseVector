@@ -12,6 +12,7 @@ export class HudView {
     gameState: GameState;
     dialogue: DialogueSnapshot;
     nextMission?: MissionPanelSummary;
+    autoLaunchRemainingMs?: number;
     feed: string[];
   }): void {
     const player = input.entities.find((entity) => entity.type === 'player');
@@ -68,7 +69,7 @@ export class HudView {
                              ? ` + ${input.nextMission.unlocks.map(formatUnlockLabel).join(', ')}`
                              : ''
                          }</p>
-                         <p>Press Enter or N to launch.</p>`
+                         <p>${formatAutoLaunch(input.autoLaunchRemainingMs)} Press Enter or N now.</p>`
                       : '<p>No additional missions are currently unlocked.</p>'
                   }
                 </div>`
@@ -119,6 +120,14 @@ function formatProgress(progress: number, required: number): string {
   }
 
   return `${Math.round(progress)}/${Math.round(required)}`;
+}
+
+function formatAutoLaunch(remainingMs: number | undefined): string {
+  if (remainingMs === undefined) {
+    return 'Next mission ready.';
+  }
+
+  return `Launching in ${Math.max(1, Math.ceil(remainingMs / 1000))}s.`;
 }
 
 function formatUnlockLabel(unlock: string): string {
