@@ -67,7 +67,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
     seed: saveGame.debug.campaignSeed,
   });
   let dialogue = new DialogueDirector([...content.dialogueNodes.values()], eventBus, missionDef.id);
-  let latestEntities: EntitySnapshot[] = snapshotCombat(combatState);
+  let latestEntities: EntitySnapshot[] = snapshotCombat(combatState, content);
   let latestMission = missionRuntime.snapshot();
   let missionContinuationState: MissionContinuationState = {
     resolvedElapsedMs: 0,
@@ -82,7 +82,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
       seed: saveGame.debug.campaignSeed,
     });
     dialogue = new DialogueDirector([...content.dialogueNodes.values()], eventBus, missionDef.id);
-    latestEntities = snapshotCombat(combatState);
+    latestEntities = snapshotCombat(combatState, content);
     latestMission = missionRuntime.snapshot();
     missionContinuationState = {
       resolvedElapsedMs: 0,
@@ -158,7 +158,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
         missionRuntime.tick(deltaMs);
         saveGame.meta.playtimeMs += deltaMs;
 
-        latestEntities = snapshotCombat(combatState);
+        latestEntities = snapshotCombat(combatState, content);
         latestMission = missionRuntime.snapshot();
       },
       render: () => {
@@ -213,6 +213,14 @@ function wireEventFeed(
   });
   eventBus.subscribe('combat.entity_destroyed', (event) => {
     push(`Destroyed: ${event.payload.entityId}.`);
+  });
+  eventBus.subscribe('combat.status_applied', (event) => {
+    push(
+      `Status: ${event.payload.statusId} x${event.payload.stacks} on ${event.payload.targetId}.`,
+    );
+  });
+  eventBus.subscribe('combat.status_expired', (event) => {
+    push(`Status expired: ${event.payload.statusId} on ${event.payload.targetId}.`);
   });
   eventBus.subscribe('mission.resolved', (event) => {
     push(`Outcome: ${event.payload.status.replaceAll('_', ' ')}.`);

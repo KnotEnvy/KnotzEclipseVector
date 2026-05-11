@@ -30,8 +30,10 @@ export type ProjectileState = {
 
 export type ActiveStatusEffect = {
   statusId: StatusEffectId;
+  sourceId?: EntityId;
   stacks: number;
   remainingMs: number;
+  durationMs: number;
   tickAccumulatorMs: number;
 };
 

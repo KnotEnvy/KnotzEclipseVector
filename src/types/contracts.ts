@@ -67,8 +67,13 @@ export type EntitySnapshot = {
   maxShield?: number;
   statuses?: Array<{
     statusId: StatusEffectId;
+    displayName: string;
+    visualKey: string;
     stacks: number;
+    maxStacks: number;
     remainingMs: number;
+    durationMs: number;
+    tags: string[];
   }>;
 };
 
@@ -374,6 +379,11 @@ export type DomainEventPayloadMap = {
     stacks: number;
     durationMs: number;
     sourceId: EntityId;
+  };
+  'combat.status_expired': {
+    targetId: EntityId;
+    statusId: StatusEffectId;
+    sourceId?: EntityId;
   };
   'combat.entity_destroyed': {
     entityId: EntityId;

@@ -1,8 +1,18 @@
 import { EntityRegistry } from '@/core/entityRegistry';
 import type { EventBus } from '@/core/eventBus';
 import type { ContentRegistry } from '@/data/registry';
-import type { EntitySnapshot, MissionDefinition, PlayerShipDefinition } from '@/types/contracts';
-import type { CombatEntity, CombatState, PlayerCommandState } from './combatTypes';
+import type {
+  EntitySnapshot,
+  MissionDefinition,
+  PlayerShipDefinition,
+  StatusEffectDefinition,
+} from '@/types/contracts';
+import type {
+  ActiveStatusEffect,
+  CombatEntity,
+  CombatState,
+  PlayerCommandState,
+} from './combatTypes';
 import { cleanupInactiveProjectiles } from './lifecycleSystem';
 import { updatePlayerMovement } from './movementSystem';
 import { resolveProjectileHits, updateProjectiles } from './projectileSystem';
@@ -65,7 +75,10 @@ export function tickCombat(
   cleanupInactiveProjectiles(state);
 }
 
-export function snapshotCombat(state: CombatState): EntitySnapshot[] {
+export function snapshotCombat(
+  state: CombatState,
+  content?: Pick<ContentRegistry, 'statusEffects'>,
+): EntitySnapshot[] {
   return state.registry.activeValues().map((entity) => ({
     id: entity.id,
     type: entity.type,
@@ -76,10 +89,25 @@ export function snapshotCombat(state: CombatState): EntitySnapshot[] {
     maxHull: entity.resources?.maxHull,
     shield: entity.resources?.shield,
     maxShield: entity.resources?.maxShield,
-    statuses: entity.statuses?.map((status) => ({
-      statusId: status.statusId,
-      stacks: status.stacks,
-      remainingMs: status.remainingMs,
-    })),
+    statuses: entity.statuses?.map((status) => {
+      const definition = content?.statusEffects.get(status.statusId);
+      return toStatusSnapshot(status, definition);
+    }),
   }));
+}
+
+function toStatusSnapshot(
+  status: ActiveStatusEffect,
+  definition: StatusEffectDefinition | undefined,
+): NonNullable<EntitySnapshot['statuses']>[number] {
+  return {
+    statusId: status.statusId,
+    displayName: definition?.displayName ?? status.statusId,
+    visualKey: definition?.visualKey ?? status.statusId,
+    stacks: status.stacks,
+    maxStacks: definition?.maxStacks ?? status.stacks,
+    remainingMs: status.remainingMs,
+    durationMs: status.durationMs || definition?.durationMs || status.remainingMs,
+    tags: definition?.tags ?? [],
+  };
 }

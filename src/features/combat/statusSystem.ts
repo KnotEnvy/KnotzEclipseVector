@@ -1,8 +1,13 @@
 import type { EventBus } from '@/core/eventBus';
 import type { ContentRegistry } from '@/data/registry';
-import type { StatusEffectDefinition } from '@/types/contracts';
+import type { EntityId, StatusEffectDefinition } from '@/types/contracts';
 import { clamp } from '@/utils/math';
 import type { ActiveStatusEffect, CombatEntity, CombatState } from './combatTypes';
+
+type StatusApplication = {
+  statusId: StatusEffectDefinition['id'];
+  sourceId: EntityId;
+};
 
 export function applyProjectileStatusEffect(
   target: CombatEntity,
@@ -10,7 +15,10 @@ export function applyProjectileStatusEffect(
   content: ContentRegistry,
   eventBus: EventBus,
 ): void {
-  if (!projectile.projectile?.statusEffectId || projectile.projectile.statusEffectChance <= 0) {
+  if (
+    !projectile.projectile?.statusEffectId ||
+    !shouldApplyStatusEffect(projectile.projectile.statusEffectChance)
+  ) {
     return;
   }
 
@@ -19,28 +27,18 @@ export function applyProjectileStatusEffect(
     return;
   }
 
-  const status = target.statuses?.find(
-    (activeStatus) => activeStatus.statusId === projectile.projectile?.statusEffectId,
-  );
-  if (status) {
-    refreshStatusEffect(status, definition);
-  } else {
-    target.statuses = target.statuses ?? [];
-    target.statuses.push({
-      statusId: projectile.projectile.statusEffectId,
-      stacks: 1,
-      remainingMs: definition.durationMs,
-      tickAccumulatorMs: 0,
-    });
-  }
+  const activeStatus = applyStatusEffect(target, definition, {
+    statusId: projectile.projectile.statusEffectId,
+    sourceId: projectile.projectile.sourceId,
+  });
 
   eventBus.publish(
     'combat.status_applied',
     {
       targetId: target.id,
       statusId: projectile.projectile.statusEffectId,
-      stacks: 1,
-      durationMs: definition.durationMs,
+      stacks: activeStatus.stacks,
+      durationMs: activeStatus.remainingMs,
       sourceId: projectile.projectile.sourceId,
     },
     {
@@ -49,14 +47,57 @@ export function applyProjectileStatusEffect(
   );
 }
 
+function shouldApplyStatusEffect(chance: number): boolean {
+  if (chance <= 0) {
+    return false;
+  }
+
+  if (chance >= 1) {
+    return true;
+  }
+
+  return Math.random() < chance;
+}
+
+export function applyStatusEffect(
+  target: CombatEntity,
+  definition: StatusEffectDefinition,
+  application: StatusApplication,
+): ActiveStatusEffect {
+  const status = target.statuses?.find(
+    (activeStatus) => activeStatus.statusId === application.statusId,
+  );
+
+  if (!status) {
+    const activeStatus: ActiveStatusEffect = {
+      statusId: application.statusId,
+      sourceId: application.sourceId,
+      stacks: 1,
+      remainingMs: definition.durationMs,
+      durationMs: definition.durationMs,
+      tickAccumulatorMs: 0,
+    };
+    target.statuses = target.statuses ?? [];
+    target.statuses.push(activeStatus);
+    return activeStatus;
+  }
+
+  refreshStatusEffect(status, definition, application.sourceId);
+  return status;
+}
+
 export function refreshStatusEffect(
   status: ActiveStatusEffect,
   definition: StatusEffectDefinition,
-): void {
+  sourceId: EntityId,
+): ActiveStatusEffect {
+  status.sourceId = sourceId;
+  status.durationMs = Math.max(status.durationMs, definition.durationMs);
+
   if (definition.stacking === 'stack-intensity') {
     status.stacks = Math.min(definition.maxStacks, status.stacks + 1);
     status.remainingMs = Math.max(status.remainingMs, definition.durationMs);
-    return;
+    return status;
   }
 
   if (definition.stacking === 'stack-duration') {
@@ -64,11 +105,19 @@ export function refreshStatusEffect(
       status.remainingMs + definition.durationMs,
       definition.durationMs * definition.maxStacks,
     );
-    return;
+    status.durationMs = definition.durationMs * definition.maxStacks;
+    return status;
+  }
+
+  if (definition.stacking === 'unique') {
+    status.stacks = 1;
+    status.remainingMs = Math.min(status.remainingMs, definition.durationMs);
+    return status;
   }
 
   status.stacks = Math.max(status.stacks, 1);
   status.remainingMs = Math.max(status.remainingMs, definition.durationMs);
+  return status;
 }
 
 export function tickStatusEffects(
@@ -88,6 +137,15 @@ export function tickStatusEffects(
       if (definition) {
         tickStatusEffect(entity, status, definition, eventBus, deltaMs);
       }
+    }
+
+    const expiredStatuses = entity.statuses.filter((status) => status.remainingMs <= 0);
+    for (const status of expiredStatuses) {
+      eventBus.publish('combat.status_expired', {
+        targetId: entity.id,
+        statusId: status.statusId,
+        sourceId: status.sourceId,
+      });
     }
 
     entity.statuses = entity.statuses.filter((status) => status.remainingMs > 0);

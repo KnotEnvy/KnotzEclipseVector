@@ -27,6 +27,8 @@ export class HudView {
           <h2>Prototype</h2>
           ${meter('Hull', player?.hull ?? 0, player?.maxHull ?? 1)}
           ${meter('Shield', player?.shield ?? 0, player?.maxShield ?? 1)}
+          ${statusList(player)}
+          ${fieldStatusList(input.entities)}
           <div class="hud-help">WASD or arrows move. Mouse aims. Space or left mouse fires.</div>
         </section>
         <section class="hud-panel hud-mission" aria-label="Mission objectives">
@@ -147,4 +149,57 @@ function meter(label: string, value: number, max: number): string {
       <span>${Math.round(value)}</span>
     </div>
   `;
+}
+
+function statusList(entity: EntitySnapshot | undefined): string {
+  if (!entity?.statuses || entity.statuses.length === 0) {
+    return '';
+  }
+
+  return `
+    <div class="hud-statuses" aria-label="Active status effects">
+      ${entity.statuses.map(statusPill).join('')}
+    </div>
+  `;
+}
+
+function statusPill(status: NonNullable<EntitySnapshot['statuses']>[number]): string {
+  const remainingSeconds = Math.max(1, Math.ceil(status.remainingMs / 1000));
+  const stackLabel = status.maxStacks > 1 ? ` x${status.stacks}` : '';
+
+  return `<span class="hud-status">${status.displayName}${stackLabel} ${remainingSeconds}s</span>`;
+}
+
+function fieldStatusList(entities: EntitySnapshot[]): string {
+  const statuses = entities
+    .filter((entity) => entity.type !== 'player')
+    .flatMap((entity) =>
+      (entity.statuses ?? []).map((status) => ({
+        entity,
+        status,
+      })),
+    );
+
+  if (statuses.length === 0) {
+    return '';
+  }
+
+  return `
+    <div class="hud-statuses" aria-label="Combat field status effects">
+      ${statuses
+        .map(
+          ({ entity, status }) =>
+            `<span class="hud-status">${status.displayName} ${formatEntityLabel(entity.id)}</span>`,
+        )
+        .join('')}
+    </div>
+  `;
+}
+
+function formatEntityLabel(entityId: string): string {
+  return entityId
+    .replace(/^enemy_/, '')
+    .split('_')
+    .slice(0, 3)
+    .join(' ');
 }

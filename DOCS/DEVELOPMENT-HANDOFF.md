@@ -46,7 +46,8 @@ The project is now a browser-runnable TypeScript game foundation using Vite and 
 - Event contract fixtures for high-value gameplay and narrative events.
 - Save migration harness with a v0 legacy fixture and current-root hydration tests.
 - Save adapter tests cover IndexedDB save, load, list, delete, and fallback-to-primary migration behavior without requiring a browser test runner.
-- First authored combat status path: `pulse_lance_mk1` applies `ionized`, which emits `combat.status_applied` and ticks shield pressure over time.
+- Combat status effects now run through a reusable status system with refresh, duration stacking, intensity stacking, unique policy handling, authored chance checks, expiry events, and UI-facing snapshot summaries.
+- First authored combat status path: `pulse_lance_mk1` applies `ionized`, which emits `combat.status_applied`, ticks shield pressure over time, emits `combat.status_expired`, and surfaces active status summaries in the HUD/event feed.
 - Combat simulation has been split behind a stable `combatSimulation.ts` facade into focused spawn, movement, resource, weapon, projectile, damage, status, and lifecycle systems.
 - One event-driven placeholder VFX response for enemy destruction.
 - Machine-readable JSON schema mirrors now exist for missions, dialogue nodes, enemy archetypes, player ships, weapons, status effects, faction state, sector state, and save roots.
@@ -108,7 +109,7 @@ Controls:
 - `src/features/combat/weaponSystem.ts`: primary weapon fire and projectile creation.
 - `src/features/combat/projectileSystem.ts`: projectile movement, bounds expiry, collision lookup, and hit resolution dispatch.
 - `src/features/combat/damageSystem.ts`: shield/hull damage and destruction event emission.
-- `src/features/combat/statusSystem.ts`: projectile status application, refresh policy, status ticking, and ionized shield pressure.
+- `src/features/combat/statusSystem.ts`: projectile status application, authored chance checks, stacking policies, status ticking, expiry events, and ionized shield pressure.
 - `src/features/combat/lifecycleSystem.ts`: cleanup of inactive transient combat entities.
 - `src/features/dialogue/dialogueDirector.ts`: event-driven mission comms runtime.
 - `src/features/mission/missionRuntime.ts`: mission objective sequencing, choice commands, and outcome generation.
@@ -147,10 +148,10 @@ Current known gate result from the latest implementation pass:
 - `npm run lint`: passing
 - `npm run format`: passing
 - `npm run validate:content`: passing
-- `npm test`: passing, 12 files and 36 tests
+- `npm test`: passing, 12 files and 38 tests
 - `npm run build`: passing
 
-Build caveat: Vite currently warns that the main JS chunk is just over 500 kB after minification. The latest observed build reported about 534.44 kB. This is mostly expected from PixiJS at this early stage, but renderer/app code-splitting should be addressed before content and presentation scale up.
+Build caveat: Vite currently warns that the main JS chunk is just over 500 kB after minification. The latest observed build reported about 536.39 kB. This is mostly expected from PixiJS at this early stage, but renderer/app code-splitting should be addressed before content and presentation scale up.
 
 ## Known Risks And Caveats
 
@@ -159,7 +160,7 @@ Build caveat: Vite currently warns that the main JS chunk is just over 500 kB af
 - Dialogue nodes now exist, but this is a lightweight comms surface, not a full branching dialogue graph or localization-ready conversation system.
 - Some schema sections are still intentionally permissive, especially consequence bundles, encounter variants, and nested save-world faction/sector maps. The Ajv pass now validates the schemas as written, and runtime validation now catches more mission-authoring drift, but schema coverage should tighten before larger content packs land.
 - Combat now has focused system modules, but the systems are still minimal and intentionally single-player/projectile-centric. Enemy behavior, hazards, richer weapons, and deeper lifecycle rules should build on the new module boundaries.
-- Status effects are functional but minimal. `ionized` currently demonstrates application, event emission, duration, and shield pressure; it is not yet a full general-purpose buff/debuff engine.
+- Status effects now have a general stacking/expiry path, but only `ionized` has a gameplay tick handler. Additional effects should add focused tick handlers and HUD affordances as their mechanics become real.
 - VFX is intentionally placeholder-level. The renderer has an event-driven explosion ring, not the final pooled particle/VFX architecture.
 - No Playwright/Puppeteer browser smoke test exists yet. Current unit coverage now protects mission continuation timing, but a real browser smoke should still verify Stage 1 choice, Stage 2 launch, dialogue display, IndexedDB persistence, and stale localStorage migration.
 - No debug overlay exists yet for events, simulation stats, save state, or content validation reports.
@@ -168,16 +169,16 @@ Build caveat: Vite currently warns that the main JS chunk is just over 500 kB af
 
 ## Current Next 10 Tasks
 
-1. Expand status effects into a general system with stacking policy tests, expiry events, and UI-facing status summaries.
-2. Add a debug overlay for event history, content validation, FPS/frame timing, and save state.
-3. Add a real asset manifest structure for VFX, UI, dialogue portraits, and audio keys.
-4. Tighten the remaining permissive schema sections for consequence bundles, encounter variants, and nested save-world faction/sector maps.
-5. Expand mission runtime objective support for timer, escort, and fail-forward branches.
-6. Add a proper mission select screen once there are multiple simultaneously available missions instead of only a linear next mission.
-7. Add Playwright/Puppeteer boot smoke coverage for load, combat completion, choice selection, Stage 2 auto-launch, dialogue display, IndexedDB persistence, and localStorage migration.
-8. Add save failure UX for private-browsing/quota-denied cases instead of silently relying on the event feed.
-9. Evaluate renderer/app code-splitting or Pixi chunk isolation before larger content and presentation scale up.
-10. Add first enemy behavior modules for movement, pressure, and firing once the player/status systems are ready for reciprocal combat.
+1. Add a debug overlay for event history, content validation, FPS/frame timing, save state, and active status summaries.
+2. Add a real asset manifest structure for VFX, UI, dialogue portraits, and audio keys.
+3. Tighten the remaining permissive schema sections for consequence bundles, encounter variants, and nested save-world faction/sector maps.
+4. Expand mission runtime objective support for timer, escort, and fail-forward branches.
+5. Add a proper mission select screen once there are multiple simultaneously available missions instead of only a linear next mission.
+6. Add Playwright/Puppeteer boot smoke coverage for load, combat completion, choice selection, Stage 2 auto-launch, dialogue display, IndexedDB persistence, and localStorage migration.
+7. Add save failure UX for private-browsing/quota-denied cases instead of silently relying on the event feed.
+8. Evaluate renderer/app code-splitting or Pixi chunk isolation before larger content and presentation scale up.
+9. Add first enemy behavior modules for movement, pressure, and firing once the player/status systems are ready for reciprocal combat.
+10. Add the next authored status effect with a real gameplay handler so the status system is proven beyond `ionized`.
 
 ## Handoff Update Protocol
 

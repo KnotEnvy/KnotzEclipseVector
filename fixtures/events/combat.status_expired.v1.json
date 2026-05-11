@@ -1,0 +1,12 @@
+{
+  "type": "combat.status_expired",
+  "version": 1,
+  "timestampMs": 3500,
+  "missionId": "corridor_breach_01",
+  "actorId": null,
+  "payload": {
+    "targetId": "enemy_fracture_drone_01",
+    "statusId": "ionized",
+    "sourceId": "player"
+  }
+}
