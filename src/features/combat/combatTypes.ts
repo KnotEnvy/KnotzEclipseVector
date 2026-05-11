@@ -1,5 +1,11 @@
 import type { EntityRegistry, RuntimeEntity } from '@/core/entityRegistry';
-import type { EntityId, StatusEffectId, Vector2, WeaponDefinition } from '@/types/contracts';
+import type {
+  DamageType,
+  EntityId,
+  StatusEffectId,
+  Vector2,
+  WeaponDefinition,
+} from '@/types/contracts';
 
 export type PlayerCommandState = {
   move: Vector2;
@@ -37,11 +43,23 @@ export type ActiveStatusEffect = {
   tickAccumulatorMs: number;
 };
 
+export type EnemyBehaviorState = {
+  moveSpeed: number;
+  preferredRange: number;
+  fireRange: number;
+  fireCooldownMs: number;
+  projectileSpeed: number;
+  projectileLifetimeMs: number;
+  projectileDamage: number;
+  projectileDamageType: DamageType;
+};
+
 export type CombatEntity = RuntimeEntity & {
   resources?: CombatResources;
   projectile?: ProjectileState;
   statuses?: ActiveStatusEffect[];
   weaponCooldownMs?: number;
+  enemyBehavior?: EnemyBehaviorState;
 };
 
 export type CombatState = {

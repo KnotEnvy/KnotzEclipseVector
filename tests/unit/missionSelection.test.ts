@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { createContentRegistry } from '@/data/registry';
 import { createInitialSave } from '@/features/save/saveService';
 import {
+  getContinuationMissionSummary,
   getNextMissionSummary,
   selectCurrentMission,
+  selectContinuationMission,
   selectNextUnlockedMission,
 } from '@/app/missionSelection';
 
@@ -30,6 +32,29 @@ describe('mission selection', () => {
 
     expect(selectNextUnlockedMission(save, content.missions)).toBeUndefined();
     expect(selectCurrentMission(save, content.missions)?.id).toBe('corridor_breach_01');
+  });
+
+  it('continues from the current mission unlock chain when replaying a completed campaign save', () => {
+    const content = createContentRegistry();
+    const save = createInitialSave('A');
+    save.game.campaign.availableMissions.push('ashwake_wake_02', 'lattice_rescue_contract_03');
+    save.game.campaign.completedMissions.push(
+      'corridor_breach_01',
+      'ashwake_wake_02',
+      'lattice_rescue_contract_03',
+    );
+    const replayedMission = content.missions.get('corridor_breach_01');
+    if (!replayedMission) {
+      throw new Error('Missing starter mission');
+    }
+
+    expect(selectNextUnlockedMission(save, content.missions)).toBeUndefined();
+    expect(selectContinuationMission(save, content.missions, replayedMission)?.id).toBe(
+      'ashwake_wake_02',
+    );
+    expect(getContinuationMissionSummary(save, content.missions, replayedMission)?.title).toBe(
+      'Ashwake Wake',
+    );
   });
 
   it('derives follow-up unlocks from completed mission consequences when campaign availability is stale', () => {

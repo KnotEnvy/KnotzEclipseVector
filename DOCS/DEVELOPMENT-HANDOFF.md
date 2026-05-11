@@ -1,10 +1,22 @@
 # Eclipse Vector Development Handoff
 
-Last updated: 2026-05-10
+Last updated: 2026-05-11
 
 ## Purpose
 
 This document is the recurring handoff record for major implementation updates to **Eclipse Vector: Fracture of the Veil**. Update it at the end of each significant build pass so the next engineering, content, VFX, QA, or coordination team can understand the current state without reconstructing context from chat history.
+
+## Alpha Direction
+
+The next team should focus on finishing a playable alpha, not expanding tooling for its own sake. The game now has three missions, basic mission continuation, player fire, enemy fire, status effects, saves, and HUD feedback. The immediate product goal is to turn that foundation into a game loop players can understand, lose, retry, progress through, and want to keep playing.
+
+For the next build passes:
+
+- Prioritize mechanics, content, feedback, and player-facing flow.
+- Add tests only when they protect fragile gameplay, save continuity, mission progression, or a bug that has already broken play.
+- Keep existing quality gates green, but do not build new test frameworks, debug tools, schemas, reports, or infrastructure unless they directly unblock alpha gameplay.
+- Prefer visible improvements: player death/retry, fail-forward outcomes, more missions, better enemy patterns, clearer rewards, stronger combat feedback, basic progression, and a playable mission selection/continue experience.
+- Postpone nonessential tooling and engineering hardening until after the alpha slice is fun and shippable.
 
 Use this document together with:
 
@@ -30,8 +42,9 @@ The project is now a browser-runnable TypeScript game foundation using Vite and 
 - Fixed-step simulation loop independent from Pixi rendering.
 - Typed event bus for cross-system communication.
 - Headless combat simulation with player movement, basic firing, projectile collision, shield and hull damage, and entity destruction.
+- Enemies now participate in combat through authored archetype behavior: drones/scouts move toward pressure range, rotate toward the player, fire projectiles, and damage the player's shield/hull through the same projectile and damage systems as player fire.
 - Declarative mission runtime with destroy, survive, and branchable choice-gate objectives.
-- Enemy archetype registry and data-driven mission encounter spawning. Starter missions now use the fracture drone plus a lighter fracture scout archetype.
+- Enemy archetype registry and data-driven mission encounter spawning. Starter missions now use the fracture drone plus a lighter fracture scout archetype, each with authored movement/range/fire tuning.
 - Narrative consequence application through a structured consequence bundle.
 - Campaign mission unlock consequences now append follow-up missions into `availableMissions`; save hydration derives follow-up unlocks from completed starter mission consequences instead of relying on one-off mission IDs.
 - Faction, sector, progression, and save state changes applied through service boundaries.
@@ -39,6 +52,8 @@ The project is now a browser-runnable TypeScript game foundation using Vite and 
 - DOM HUD layered over a Pixi playfield.
 - Lightweight post-mission continuation flow: after a mission resolves, the HUD shows the next unlocked mission, sector, reward summary, and `Enter` or `N` launches it without reloading the page.
 - Mission continuation is now deterministic: combat is held while a choice gate or resolved-state panel owns the stage, early continue input is preserved until resolution, and the next mission auto-launches after a short resolved-state countdown if one is available.
+- Mission continuation now handles completed-save replay of the linear starter chain: if the default slot has already completed all authored missions and falls back to replaying `corridor_breach_01`, resolving it still offers `ashwake_wake_02` instead of leaving the player at a permanent "no missions available" panel.
+- Transient projectiles are cleared when choice/resolution UI takes over so stale bullets do not appear frozen behind mission panels.
 - Starter content registry with boot-time validation.
 - Dedicated content validation CLI exposed through `npm run validate:content`.
 - Content validation now compiles the authored JSON Schema mirrors with Ajv 8 and validates starter missions, ships, weapons, status effects, factions, sectors, and the current initial save shell against those schemas.
@@ -48,7 +63,7 @@ The project is now a browser-runnable TypeScript game foundation using Vite and 
 - Save adapter tests cover IndexedDB save, load, list, delete, and fallback-to-primary migration behavior without requiring a browser test runner.
 - Combat status effects now run through a reusable status system with refresh, duration stacking, intensity stacking, unique policy handling, authored chance checks, expiry events, and UI-facing snapshot summaries.
 - First authored combat status path: `pulse_lance_mk1` applies `ionized`, which emits `combat.status_applied`, ticks shield pressure over time, emits `combat.status_expired`, and surfaces active status summaries in the HUD/event feed.
-- Combat simulation has been split behind a stable `combatSimulation.ts` facade into focused spawn, movement, resource, weapon, projectile, damage, status, and lifecycle systems.
+- Combat simulation has been split behind a stable `combatSimulation.ts` facade into focused spawn, movement, resource, weapon, enemy behavior, projectile, damage, status, and lifecycle systems.
 - One event-driven placeholder VFX response for enemy destruction.
 - Machine-readable JSON schema mirrors now exist for missions, dialogue nodes, enemy archetypes, player ships, weapons, status effects, faction state, sector state, and save roots.
 - Runtime content validation now covers ship tuning, weapon tuning, enemy archetype tuning, status effect timing/stacking basics, faction and sector registry identity, sector control references, encounter enemy references, encounter coordinates, mission unlock references, reward values, and consequence deltas.
@@ -93,6 +108,7 @@ Controls:
 - Mission encounter enemy references are validated against authored enemy archetypes, and combat spawn uses encounter data rather than hardcoded enemy construction.
 - Bootstrap selects the first available campaign mission that has not already been completed.
 - Mission selection logic lives in `src/app/missionSelection.ts`; app bootstrap uses it for initial mission selection, HUD summaries, and post-mission continuation, and the selector can derive follow-up mission availability from completed mission consequences when an already-loaded save has stale `availableMissions`.
+- Replay continuation logic uses the current mission's authored full-success unlock chain when all missions are already marked complete, preserving playability for local/default-slot completed saves without silently wiping progress.
 - Authored JSON schemas are compiled with the draft 2020-12 Ajv path and applied to starter content objects during content validation.
 - Dialogue is event-driven through `DialogueDirector`; authored lines listen to domain events and the HUD only renders the current dialogue snapshot.
 
@@ -107,6 +123,7 @@ Controls:
 - `src/features/combat/movementSystem.ts`: player movement, aim rotation, and world bounds.
 - `src/features/combat/resourceSystem.ts`: weapon cooldown and energy/heat recovery.
 - `src/features/combat/weaponSystem.ts`: primary weapon fire and projectile creation.
+- `src/features/combat/enemyBehaviorSystem.ts`: enemy pressure movement, aim rotation, cooldowns, and projectile fire from authored archetype behavior.
 - `src/features/combat/projectileSystem.ts`: projectile movement, bounds expiry, collision lookup, and hit resolution dispatch.
 - `src/features/combat/damageSystem.ts`: shield/hull damage and destruction event emission.
 - `src/features/combat/statusSystem.ts`: projectile status application, authored chance checks, stacking policies, status ticking, expiry events, and ionized shield pressure.
@@ -115,7 +132,7 @@ Controls:
 - `src/features/mission/missionRuntime.ts`: mission objective sequencing, choice commands, and outcome generation.
 - `src/features/narrative/narrativeState.ts`: consequence application into persistent game state.
 - `src/features/save/saveService.ts`: save adapter contract, IndexedDB and localStorage implementations, browser adapter factory, and save hydration/migration entry point.
-- `src/app/missionSelection.ts`: next unlocked mission selection and mission panel summary helpers for boot, HUD, and post-mission continuation.
+- `src/app/missionSelection.ts`: next unlocked mission selection, replay continuation selection, and mission panel summary helpers for boot, HUD, and post-mission continuation.
 - `src/app/missionFlow.ts`: resolved-state continuation timing and combat-hold rules for choice/resolution UI states.
 - `src/data/missions.ts`: current starter mission content.
 - `src/data/enemies.ts`: current enemy archetype content used by mission encounter spawning.
@@ -131,7 +148,7 @@ Controls:
 
 ## Quality Gates
 
-Run these before handing off a major update:
+Run these before handing off a major update, but keep the work itself gameplay-led:
 
 ```bash
 npm run typecheck
@@ -148,10 +165,12 @@ Current known gate result from the latest implementation pass:
 - `npm run lint`: passing
 - `npm run format`: passing
 - `npm run validate:content`: passing
-- `npm test`: passing, 12 files and 38 tests
+- `npm test`: passing, 12 files and 41 tests
 - `npm run build`: passing
 
-Build caveat: Vite currently warns that the main JS chunk is just over 500 kB after minification. The latest observed build reported about 536.39 kB. This is mostly expected from PixiJS at this early stage, but renderer/app code-splitting should be addressed before content and presentation scale up.
+Build caveat: Vite currently warns that the main JS chunk is just over 500 kB after minification. The latest observed build reported about 539.75 kB. This is mostly expected from PixiJS at this early stage, but renderer/app code-splitting should be addressed before content and presentation scale up.
+
+Testing guidance for alpha: use the current unit/content/build gates as a guardrail. Do not expand the test/tooling surface unless a player-facing feature needs that protection to avoid regressions.
 
 ## Known Risks And Caveats
 
@@ -159,26 +178,40 @@ Build caveat: Vite currently warns that the main JS chunk is just over 500 kB af
 - Save migration discipline has started, but there is only one legacy fixture. Any persistent shape change needs a new before/after fixture pair.
 - Dialogue nodes now exist, but this is a lightweight comms surface, not a full branching dialogue graph or localization-ready conversation system.
 - Some schema sections are still intentionally permissive, especially consequence bundles, encounter variants, and nested save-world faction/sector maps. The Ajv pass now validates the schemas as written, and runtime validation now catches more mission-authoring drift, but schema coverage should tighten before larger content packs land.
-- Combat now has focused system modules, but the systems are still minimal and intentionally single-player/projectile-centric. Enemy behavior, hazards, richer weapons, and deeper lifecycle rules should build on the new module boundaries.
+- Combat now has focused system modules and first enemy pressure/fire behavior, but hazards, richer enemy patterns, player death/fail states, and deeper lifecycle rules still need dedicated systems before combat becomes production-complete.
 - Status effects now have a general stacking/expiry path, but only `ionized` has a gameplay tick handler. Additional effects should add focused tick handlers and HUD affordances as their mechanics become real.
 - VFX is intentionally placeholder-level. The renderer has an event-driven explosion ring, not the final pooled particle/VFX architecture.
-- No Playwright/Puppeteer browser smoke test exists yet. Current unit coverage now protects mission continuation timing, but a real browser smoke should still verify Stage 1 choice, Stage 2 launch, dialogue display, IndexedDB persistence, and stale localStorage migration.
+- No Playwright/Puppeteer browser smoke test exists yet, and the repo currently has neither Playwright nor Puppeteer installed. Current unit coverage now protects mission continuation timing and completed-save replay continuation, but a real browser smoke should still verify Stage 1 choice, Stage 2 launch, dialogue display, IndexedDB persistence, and stale localStorage migration.
 - No debug overlay exists yet for events, simulation stats, save state, or content validation reports.
 - The Git workspace may require `safe.directory` handling in this environment because Git previously reported an ownership warning.
 - `npm install` reported 6 moderate dependency audit findings. Do not run breaking audit fixes casually; evaluate dependency upgrades deliberately.
 
+These risks are real, but most are not the next alpha blockers. The highest alpha blockers are player death/retry, more playable content, clear progression/rewards, enemy variety, stronger combat feedback, and a less prototype-like mission flow.
+
 ## Current Next 10 Tasks
 
-1. Add a debug overlay for event history, content validation, FPS/frame timing, save state, and active status summaries.
-2. Add a real asset manifest structure for VFX, UI, dialogue portraits, and audio keys.
-3. Tighten the remaining permissive schema sections for consequence bundles, encounter variants, and nested save-world faction/sector maps.
-4. Expand mission runtime objective support for timer, escort, and fail-forward branches.
-5. Add a proper mission select screen once there are multiple simultaneously available missions instead of only a linear next mission.
-6. Add Playwright/Puppeteer boot smoke coverage for load, combat completion, choice selection, Stage 2 auto-launch, dialogue display, IndexedDB persistence, and localStorage migration.
-7. Add save failure UX for private-browsing/quota-denied cases instead of silently relying on the event feed.
-8. Evaluate renderer/app code-splitting or Pixi chunk isolation before larger content and presentation scale up.
-9. Add first enemy behavior modules for movement, pressure, and firing once the player/status systems are ready for reciprocal combat.
-10. Add the next authored status effect with a real gameplay handler so the status system is proven beyond `ionized`.
+1. Add player death, mission failure, retry, and fail-forward handling now that enemies can damage the player.
+2. Add a fourth playable mission that uses the new enemy pressure/fire behavior and introduces a more interesting objective mix.
+3. Add basic post-mission progression: salvage spend, a simple repair/upgrade choice, or a loadout improvement that changes the next run.
+4. Improve combat feel with player damage feedback, hit flashes, clearer enemy shots, low-shield warning, and stronger destruction/VFX/audio cues.
+5. Add at least one new enemy behavior variant or attack pattern so drones and scouts do not feel like identical targets with different stats.
+6. Add the next authored status effect with a real gameplay handler so the status system is proven beyond `ionized`.
+7. Add a simple mission select/continue screen once more than one mission can be available, with clear rewards and sector context.
+8. Add a player-facing new game/reset slot affordance so completed local saves do not confuse playtesters.
+9. Expand mission runtime objective support only where needed for authored gameplay, starting with escort, timed interact, or fail-forward branches.
+10. Add more authored comms, rewards, and sector/faction consequences to make choices feel visible during play.
+
+## Post-Alpha Or Only If Blocking Gameplay
+
+The following are useful but should not consume alpha time unless they directly unblock a player-facing feature or serious bug:
+
+- Debug overlay for event history, content validation, FPS/frame timing, save state, and active status summaries.
+- Broader Playwright/Puppeteer automation and screenshot smoke suites.
+- Tightening permissive schemas beyond what current authored content needs.
+- More event contract fixtures or test harness work unrelated to current gameplay bugs.
+- Renderer/app code-splitting or Pixi chunk isolation unless load time or runtime performance becomes a visible player problem.
+- Dependency audit upgrades unless a security issue or install/build failure blocks shipping.
+- Large save migration harness expansion unless save shape changes are needed for alpha progression.
 
 ## Handoff Update Protocol
 
@@ -195,8 +228,8 @@ At the end of each major update:
 ## Recommended Starting Path For The Next Team
 
 1. Read this handoff first.
-2. Read `DOCS/implementation-startup-brief.md` for the initial implementation rationale.
-3. Read `DOCS/repository-assessment.md` for the repo baseline.
-4. Read the Technical Architecture Spec and Interface Contract Spec before touching runtime boundaries.
-5. Run the quality gates.
-6. Pick one bounded packet from the next task list and update this handoff when done.
+2. Run the game locally and play through the first three missions from a fresh slot or reset save state.
+3. Pick one bounded gameplay packet from the next task list, starting with player death/fail-forward or Mission 4.
+4. Read `DOCS/implementation-startup-brief.md`, Technical Architecture Spec, and Interface Contract Spec only as needed before touching runtime boundaries.
+5. Keep existing gates green after the gameplay change.
+6. Update this handoff with what changed for players, what remains rough, and the next gameplay priority.

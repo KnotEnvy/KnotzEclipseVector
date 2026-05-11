@@ -13,7 +13,8 @@ import type {
   CombatState,
   PlayerCommandState,
 } from './combatTypes';
-import { cleanupInactiveProjectiles } from './lifecycleSystem';
+import { updateEnemyBehaviors } from './enemyBehaviorSystem';
+import { cleanupInactiveProjectiles, clearProjectiles } from './lifecycleSystem';
 import { updatePlayerMovement } from './movementSystem';
 import { resolveProjectileHits, updateProjectiles } from './projectileSystem';
 import { updateCooldownAndResources } from './resourceSystem';
@@ -70,9 +71,14 @@ export function tickCombat(
     tryFirePrimaryWeapon(state, player, command, weapon);
   }
 
+  updateEnemyBehaviors(state, deltaMs);
   updateProjectiles(state, deltaMs);
   resolveProjectileHits(state, content, eventBus);
   cleanupInactiveProjectiles(state);
+}
+
+export function clearCombatProjectiles(state: CombatState): void {
+  clearProjectiles(state);
 }
 
 export function snapshotCombat(

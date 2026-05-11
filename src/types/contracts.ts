@@ -151,6 +151,16 @@ export type EnemyArchetypeDefinition = {
     shield: number;
     maxHeat: number;
   };
+  behavior: {
+    moveSpeed: number;
+    preferredRange: number;
+    fireRange: number;
+    fireCooldownMs: number;
+    projectileSpeed: number;
+    projectileLifetimeMs: number;
+    projectileDamage: number;
+    projectileDamageType: DamageType;
+  };
   tags: string[];
 };
 

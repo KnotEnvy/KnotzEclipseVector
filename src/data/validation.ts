@@ -80,6 +80,28 @@ function validateEnemyArchetypeDefinition(
   assertPositiveNumber(enemy.stats.hull, `${path}.stats.hull`, issues);
   assertNonNegativeNumber(enemy.stats.shield, `${path}.stats.shield`, issues);
   assertPositiveNumber(enemy.stats.maxHeat, `${path}.stats.maxHeat`, issues);
+  assertPositiveNumber(enemy.behavior.moveSpeed, `${path}.behavior.moveSpeed`, issues);
+  assertPositiveNumber(enemy.behavior.preferredRange, `${path}.behavior.preferredRange`, issues);
+  assertPositiveNumber(enemy.behavior.fireRange, `${path}.behavior.fireRange`, issues);
+  assertPositiveNumber(enemy.behavior.fireCooldownMs, `${path}.behavior.fireCooldownMs`, issues);
+  assertPositiveNumber(enemy.behavior.projectileSpeed, `${path}.behavior.projectileSpeed`, issues);
+  assertPositiveNumber(
+    enemy.behavior.projectileLifetimeMs,
+    `${path}.behavior.projectileLifetimeMs`,
+    issues,
+  );
+  assertPositiveNumber(
+    enemy.behavior.projectileDamage,
+    `${path}.behavior.projectileDamage`,
+    issues,
+  );
+
+  if (enemy.behavior.fireRange < enemy.behavior.preferredRange) {
+    issues.push({
+      path: `${path}.behavior.fireRange`,
+      message: 'Enemy fire range should be at least the preferred range.',
+    });
+  }
 }
 
 function validateDialogueNodeDefinition(

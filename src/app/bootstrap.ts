@@ -4,7 +4,12 @@ import { GAME_CONFIG } from '@/config/gameConfig';
 import { createContentRegistry } from '@/data/registry';
 import { validateContentRegistry } from '@/data/validation';
 import { AudioDirector } from '@/features/audio/audioDirector';
-import { createCombatState, snapshotCombat, tickCombat } from '@/features/combat/combatSimulation';
+import {
+  clearCombatProjectiles,
+  createCombatState,
+  snapshotCombat,
+  tickCombat,
+} from '@/features/combat/combatSimulation';
 import { DialogueDirector } from '@/features/dialogue/dialogueDirector';
 import { MissionRuntime } from '@/features/mission/missionRuntime';
 import { applyConsequenceBundle } from '@/features/narrative/narrativeState';
@@ -20,9 +25,9 @@ import {
 } from './missionFlow';
 import {
   getMissionPanelSummary,
-  getNextMissionSummary,
+  getContinuationMissionSummary,
   selectCurrentMission,
-  selectNextUnlockedMission,
+  selectContinuationMission,
 } from './missionSelection';
 
 export async function bootstrapGame(root: HTMLElement): Promise<void> {
@@ -93,7 +98,11 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
 
   wireEventFeed(eventBus, eventFeed, saveGame, saveService);
   eventBus.subscribe('combat.entity_destroyed', (event) => missionRuntime.handleEvent(event));
+  eventBus.subscribe('mission.choice_presented', () => {
+    clearCombatProjectiles(combatState);
+  });
   eventBus.subscribe('mission.resolved', (event) => {
+    clearCombatProjectiles(combatState);
     applyConsequenceBundle(
       saveGame.game,
       event.payload.missionId,
@@ -121,7 +130,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
         const choiceSelection = input.consumeChoiceSelection();
         const continueMission =
           missionSnapshot.phase === 'resolved' ? input.consumeContinueMission() : false;
-        const nextMission = selectNextUnlockedMission(saveGame, content.missions);
+        const nextMission = selectContinuationMission(saveGame, content.missions, missionDef);
         const continuation = updateMissionContinuation({
           state: missionContinuationState,
           missionPhase: missionSnapshot.phase,
@@ -172,7 +181,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
           currentMission: getMissionPanelSummary(missionDef),
           gameState: saveGame.game,
           dialogue: dialogue.snapshot(),
-          nextMission: getNextMissionSummary(saveGame, content.missions),
+          nextMission: getContinuationMissionSummary(saveGame, content.missions, missionDef),
           autoLaunchRemainingMs,
           feed: eventFeed,
         });

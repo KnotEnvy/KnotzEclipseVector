@@ -35,6 +35,26 @@ export function selectNextUnlockedMission(
   return nextAvailableMissionId ? missions.get(nextAvailableMissionId) : undefined;
 }
 
+export function selectContinuationMission(
+  saveGame: SaveGameRoot,
+  missions: ReadonlyMap<string, MissionDefinition>,
+  currentMission: MissionDefinition,
+): MissionDefinition | undefined {
+  const nextUnlockedMission = selectNextUnlockedMission(saveGame, missions);
+  if (nextUnlockedMission) {
+    return nextUnlockedMission;
+  }
+
+  for (const missionId of getMissionUnlocks(currentMission)) {
+    const mission = missions.get(missionId);
+    if (mission) {
+      return mission;
+    }
+  }
+
+  return undefined;
+}
+
 export function getMissionPanelSummary(mission: MissionDefinition): MissionPanelSummary {
   return {
     id: mission.id,
@@ -55,6 +75,15 @@ export function getNextMissionSummary(
   missions: ReadonlyMap<string, MissionDefinition>,
 ): MissionPanelSummary | undefined {
   const nextMission = selectNextUnlockedMission(saveGame, missions);
+  return nextMission ? getMissionPanelSummary(nextMission) : undefined;
+}
+
+export function getContinuationMissionSummary(
+  saveGame: SaveGameRoot,
+  missions: ReadonlyMap<string, MissionDefinition>,
+  currentMission: MissionDefinition,
+): MissionPanelSummary | undefined {
+  const nextMission = selectContinuationMission(saveGame, missions, currentMission);
   return nextMission ? getMissionPanelSummary(nextMission) : undefined;
 }
 
@@ -84,6 +113,28 @@ function getAvailableMissionIds(
       for (const missionId of consequence.apply.campaign?.unlockMissions ?? []) {
         appendMissionId(missionId);
       }
+    }
+  }
+
+  return missionIds;
+}
+
+function getMissionUnlocks(mission: MissionDefinition): string[] {
+  const missionIds: string[] = [];
+  const seenMissionIds = new Set<string>();
+
+  for (const consequence of mission.consequences) {
+    if (consequence.when !== 'full_success') {
+      continue;
+    }
+
+    for (const missionId of consequence.apply.campaign?.unlockMissions ?? []) {
+      if (seenMissionIds.has(missionId)) {
+        continue;
+      }
+
+      seenMissionIds.add(missionId);
+      missionIds.push(missionId);
     }
   }
 

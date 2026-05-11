@@ -4,7 +4,9 @@ import { EventBus } from '@/core/eventBus';
 import { createContentRegistry } from '@/data/registry';
 import type { CombatEntity, CombatState } from '@/features/combat/combatTypes';
 import { snapshotCombat } from '@/features/combat/combatSimulation';
-import { cleanupInactiveProjectiles } from '@/features/combat/lifecycleSystem';
+import { updateEnemyBehaviors } from '@/features/combat/enemyBehaviorSystem';
+import { cleanupInactiveProjectiles, clearProjectiles } from '@/features/combat/lifecycleSystem';
+import { resolveProjectileHits } from '@/features/combat/projectileSystem';
 import { applyStatusEffect, tickStatusEffects } from '@/features/combat/statusSystem';
 import { createPlayerEntity, spawnMissionEncounters } from '@/features/combat/spawnSystem';
 import { tryFirePrimaryWeapon } from '@/features/combat/weaponSystem';
@@ -26,6 +28,7 @@ describe('combat systems', () => {
     const scoutArchetype = content.enemyArchetypes.get('fracture_scout');
 
     expect(firstScout?.resources?.hull).toBe(scoutArchetype?.stats.hull);
+    expect(firstScout?.enemyBehavior?.moveSpeed).toBe(scoutArchetype?.behavior.moveSpeed);
     expect(secondScout?.transform.position).toEqual({ x: 1030, y: 470 });
     expect(registry.activeValues()).toHaveLength(2);
   });
@@ -129,6 +132,82 @@ describe('combat systems', () => {
     expect(damageSources).toContain('status_ionized');
     expect(target.statuses).toHaveLength(1);
     expect(state.registry.get('projectile_expired')).toBeUndefined();
+  });
+
+  it('clears transient projectiles when mission UI owns the stage', () => {
+    const projectile: CombatEntity = {
+      id: 'projectile_visible',
+      type: 'projectile',
+      factionId: 'player',
+      transform: { position: { x: 300, y: 300 }, rotation: 0 },
+      velocity: { x: 10, y: 0 },
+      radius: 6,
+      active: true,
+      tags: ['projectile'],
+    };
+    const enemy = createTargetEntity();
+    const state: CombatState = {
+      registry: new EntityRegistry<CombatEntity>(),
+      playerId: 'player',
+      elapsedMs: 0,
+      nextProjectileIndex: 0,
+    };
+    state.registry.add(projectile);
+    state.registry.add(enemy);
+
+    clearProjectiles(state);
+
+    expect(state.registry.get('projectile_visible')).toBeUndefined();
+    expect(state.registry.get('enemy_test_target')).toBe(enemy);
+  });
+
+  it('moves enemies toward pressure range and fires damageable projectiles at the player', () => {
+    const content = createContentRegistry();
+    const ship = content.ships.get('veilrunner_proto');
+    if (!ship) {
+      throw new Error('Missing starter ship');
+    }
+
+    const player = createPlayerEntity(ship);
+    const enemy = createTargetEntity();
+    enemy.factionId = 'fracture';
+    enemy.transform.position = { x: 900, y: player.transform.position.y };
+    enemy.enemyBehavior = {
+      moveSpeed: 100,
+      preferredRange: 300,
+      fireRange: 700,
+      fireCooldownMs: 500,
+      projectileSpeed: 300,
+      projectileLifetimeMs: 1200,
+      projectileDamage: 7,
+      projectileDamageType: 'energy',
+    };
+    enemy.weaponCooldownMs = 0;
+    const state: CombatState = {
+      registry: new EntityRegistry<CombatEntity>(),
+      playerId: player.id,
+      elapsedMs: 0,
+      nextProjectileIndex: 0,
+    };
+    state.registry.add(player);
+    state.registry.add(enemy);
+
+    updateEnemyBehaviors(state, 1000);
+
+    expect(enemy.transform.position.x).toBeLessThan(900);
+    expect(state.registry.get('projectile_0')?.projectile?.sourceId).toBe(enemy.id);
+
+    enemy.transform.position = {
+      x: player.transform.position.x + 24,
+      y: player.transform.position.y,
+    };
+    enemy.weaponCooldownMs = 0;
+    updateEnemyBehaviors(state, 16);
+    resolveProjectileHits(state, content, new EventBus());
+
+    expect(player.resources?.shield).toBe(
+      ship.stats.maxShield - enemy.enemyBehavior.projectileDamage,
+    );
   });
 
   it('applies status stacking policies without renderer dependencies', () => {

@@ -7,3 +7,11 @@ export function cleanupInactiveProjectiles(state: CombatState): void {
     }
   }
 }
+
+export function clearProjectiles(state: CombatState): void {
+  for (const entity of state.registry.values()) {
+    if (entity.type === 'projectile') {
+      state.registry.remove(entity.id);
+    }
+  }
+}

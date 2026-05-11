@@ -3,7 +3,7 @@
   "$id": "https://eclipse-vector.local/schemas/enemy-archetype.schema.json",
   "title": "Eclipse Vector EnemyArchetypeDefinition",
   "type": "object",
-  "required": ["id", "version", "displayName", "factionId", "radius", "stats", "tags"],
+  "required": ["id", "version", "displayName", "factionId", "radius", "stats", "behavior", "tags"],
   "properties": {
     "id": { "$ref": "#/$defs/stableId" },
     "version": { "$ref": "#/$defs/semver" },
@@ -17,6 +17,32 @@
         "hull": { "type": "number", "exclusiveMinimum": 0 },
         "shield": { "type": "number", "minimum": 0 },
         "maxHeat": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "behavior": {
+      "type": "object",
+      "required": [
+        "moveSpeed",
+        "preferredRange",
+        "fireRange",
+        "fireCooldownMs",
+        "projectileSpeed",
+        "projectileLifetimeMs",
+        "projectileDamage",
+        "projectileDamageType"
+      ],
+      "properties": {
+        "moveSpeed": { "type": "number", "exclusiveMinimum": 0 },
+        "preferredRange": { "type": "number", "exclusiveMinimum": 0 },
+        "fireRange": { "type": "number", "exclusiveMinimum": 0 },
+        "fireCooldownMs": { "type": "number", "exclusiveMinimum": 0 },
+        "projectileSpeed": { "type": "number", "exclusiveMinimum": 0 },
+        "projectileLifetimeMs": { "type": "number", "exclusiveMinimum": 0 },
+        "projectileDamage": { "type": "number", "exclusiveMinimum": 0 },
+        "projectileDamageType": {
+          "enum": ["kinetic", "energy", "plasma", "ion", "veil"]
+        }
       },
       "additionalProperties": false
     },

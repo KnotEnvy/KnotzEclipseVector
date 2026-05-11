@@ -77,5 +77,7 @@ export function spawnEnemyEncounter(
       maxHeat: archetype.stats.maxHeat,
     },
     statuses: [],
+    weaponCooldownMs: archetype.behavior.fireCooldownMs * 0.5,
+    enemyBehavior: { ...archetype.behavior },
   });
 }
