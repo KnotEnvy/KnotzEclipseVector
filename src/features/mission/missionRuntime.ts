@@ -85,6 +85,21 @@ export class MissionRuntime {
     };
   }
 
+  fail(status: Extract<MissionOutcomeStatus, 'fail_forward' | 'hard_fail'> = 'fail_forward'): void {
+    if (this.phase !== 'active') {
+      return;
+    }
+
+    for (const progress of this.objectiveProgress) {
+      if (progress.state === 'active' || progress.state === 'inactive') {
+        progress.state = 'failed';
+        this.publishObjective(progress);
+      }
+    }
+
+    this.resolve(status);
+  }
+
   handleEvent(event: DomainEvent<'combat.entity_destroyed'>): void {
     if (this.phase !== 'active') {
       return;
@@ -92,6 +107,11 @@ export class MissionRuntime {
 
     if (event.type === 'combat.entity_destroyed') {
       const payload = event.payload;
+      if (payload.entityType === 'player') {
+        this.fail('fail_forward');
+        return;
+      }
+
       for (const objective of this.definition.objectives) {
         if (objective.kind !== 'destroy' || objective.targetEntityType !== payload.entityType) {
           continue;
@@ -199,7 +219,7 @@ export class MissionRuntime {
   }
 
   private resolve(status: MissionOutcomeStatus): void {
-    if (this.phase === 'resolved') {
+    if (this.phase === 'resolved' || this.phase === 'failed') {
       return;
     }
 
@@ -208,7 +228,7 @@ export class MissionRuntime {
       this.definition.consequences[0]?.apply ??
       {};
 
-    this.phase = 'resolved';
+    this.phase = status === 'fail_forward' || status === 'hard_fail' ? 'failed' : 'resolved';
     this.outcome = {
       missionId: this.definition.id,
       status,

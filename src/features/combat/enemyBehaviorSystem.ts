@@ -13,12 +13,17 @@ export function updateEnemyBehaviors(state: CombatState, deltaMs: number): void 
       continue;
     }
 
-    updateEnemyMovement(enemy, player, deltaMs);
+    updateEnemyMovement(enemy, player, deltaMs, state.elapsedMs);
     updateEnemyWeapon(state, enemy, player, deltaMs);
   }
 }
 
-function updateEnemyMovement(enemy: CombatEntity, player: CombatEntity, deltaMs: number): void {
+function updateEnemyMovement(
+  enemy: CombatEntity,
+  player: CombatEntity,
+  deltaMs: number,
+  elapsedMs: number,
+): void {
   const behavior = enemy.enemyBehavior;
   if (!behavior) {
     return;
@@ -38,10 +43,20 @@ function updateEnemyMovement(enemy: CombatEntity, player: CombatEntity, deltaMs:
       : distance < behavior.preferredRange - rangeBuffer
         ? -1
         : 0;
+  const strafeSign =
+    behavior.pattern === 'strafe' ? Math.sin(elapsedMs / 520 + enemy.id.length) : 0;
+  const tangent = {
+    x: -direction.y,
+    y: direction.x,
+  };
 
   enemy.velocity = {
-    x: direction.x * behavior.moveSpeed * moveSign,
-    y: direction.y * behavior.moveSpeed * moveSign,
+    x:
+      direction.x * behavior.moveSpeed * moveSign +
+      tangent.x * behavior.moveSpeed * 0.72 * strafeSign,
+    y:
+      direction.y * behavior.moveSpeed * moveSign +
+      tangent.y * behavior.moveSpeed * 0.72 * strafeSign,
   };
   enemy.transform.position.x = clamp(
     enemy.transform.position.x + enemy.velocity.x * seconds,
@@ -91,35 +106,48 @@ function updateEnemyWeapon(
     return;
   }
 
-  const projectileId = `projectile_${state.nextProjectileIndex}`;
-  state.nextProjectileIndex += 1;
   enemy.weaponCooldownMs = behavior.fireCooldownMs;
+  const volleyCount = Math.max(1, behavior.volleyCount ?? 1);
+  const spreadRadians = ((behavior.volleySpreadDegrees ?? 0) * Math.PI) / 180;
+  const baseAngle = Math.atan2(aim.y, aim.x);
 
-  state.registry.add({
-    id: projectileId,
-    type: 'projectile',
-    factionId: enemy.factionId,
-    transform: {
-      position: {
-        x: enemy.transform.position.x + aim.x * (enemy.radius + 8),
-        y: enemy.transform.position.y + aim.y * (enemy.radius + 8),
+  for (let index = 0; index < volleyCount; index += 1) {
+    const offset = volleyCount === 1 ? 0 : index / (volleyCount - 1) - 0.5;
+    const angle = baseAngle + spreadRadians * offset;
+    const shotAim = {
+      x: Math.cos(angle),
+      y: Math.sin(angle),
+    };
+    const projectileId = `projectile_${state.nextProjectileIndex}`;
+    state.nextProjectileIndex += 1;
+
+    state.registry.add({
+      id: projectileId,
+      type: 'projectile',
+      factionId: enemy.factionId,
+      transform: {
+        position: {
+          x: enemy.transform.position.x + shotAim.x * (enemy.radius + 8),
+          y: enemy.transform.position.y + shotAim.y * (enemy.radius + 8),
+        },
+        rotation: angle,
       },
-      rotation: Math.atan2(aim.y, aim.x),
-    },
-    velocity: {
-      x: aim.x * behavior.projectileSpeed,
-      y: aim.y * behavior.projectileSpeed,
-    },
-    radius: 5,
-    active: true,
-    tags: ['projectile', 'enemy_fire'],
-    projectile: {
-      sourceId: enemy.id,
-      weaponId: 'enemy_fire',
-      damage: behavior.projectileDamage,
-      damageType: behavior.projectileDamageType,
-      statusEffectChance: 0,
-      lifetimeMs: behavior.projectileLifetimeMs,
-    },
-  });
+      velocity: {
+        x: shotAim.x * behavior.projectileSpeed,
+        y: shotAim.y * behavior.projectileSpeed,
+      },
+      radius: behavior.volleyCount && behavior.volleyCount > 1 ? 4 : 5,
+      active: true,
+      tags: ['projectile', 'enemy_fire'],
+      projectile: {
+        sourceId: enemy.id,
+        weaponId: 'enemy_fire',
+        damage: behavior.projectileDamage,
+        damageType: behavior.projectileDamageType,
+        statusEffectId: behavior.statusEffectId,
+        statusEffectChance: behavior.statusEffectChance ?? 0,
+        lifetimeMs: behavior.projectileLifetimeMs,
+      },
+    });
+  }
 }

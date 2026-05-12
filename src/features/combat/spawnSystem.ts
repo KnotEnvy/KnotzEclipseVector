@@ -1,10 +1,27 @@
 import type { EntityRegistry } from '@/core/entityRegistry';
 import { GAME_CONFIG } from '@/config/gameConfig';
 import type { ContentRegistry } from '@/data/registry';
-import type { MissionDefinition, PlayerShipDefinition } from '@/types/contracts';
+import {
+  FIELD_CAPACITOR_HULL_BONUS,
+  FIELD_CAPACITOR_SHIELD_BONUS,
+  FIELD_CAPACITOR_UNLOCK,
+} from '@/features/progression/progressionState';
+import type {
+  MissionDefinition,
+  PlayerProgressionState,
+  PlayerShipDefinition,
+} from '@/types/contracts';
 import type { CombatEntity } from './combatTypes';
 
-export function createPlayerEntity(playerShip: PlayerShipDefinition): CombatEntity {
+export function createPlayerEntity(
+  playerShip: PlayerShipDefinition,
+  progression?: PlayerProgressionState,
+): CombatEntity {
+  const hasFieldCapacitor = progression?.unlocks.includes(FIELD_CAPACITOR_UNLOCK) ?? false;
+  const maxHull = playerShip.stats.maxHull + (hasFieldCapacitor ? FIELD_CAPACITOR_HULL_BONUS : 0);
+  const maxShield =
+    playerShip.stats.maxShield + (hasFieldCapacitor ? FIELD_CAPACITOR_SHIELD_BONUS : 0);
+
   return {
     id: 'player',
     type: 'player',
@@ -18,10 +35,10 @@ export function createPlayerEntity(playerShip: PlayerShipDefinition): CombatEnti
     active: true,
     tags: ['player', 'ship'],
     resources: {
-      hull: playerShip.stats.maxHull,
-      maxHull: playerShip.stats.maxHull,
-      shield: playerShip.stats.maxShield,
-      maxShield: playerShip.stats.maxShield,
+      hull: maxHull,
+      maxHull,
+      shield: maxShield,
+      maxShield,
       energy: playerShip.stats.maxEnergy,
       maxEnergy: playerShip.stats.maxEnergy,
       heat: 0,

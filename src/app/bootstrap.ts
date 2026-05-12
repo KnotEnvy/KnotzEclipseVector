@@ -13,7 +13,15 @@ import {
 import { DialogueDirector } from '@/features/dialogue/dialogueDirector';
 import { MissionRuntime } from '@/features/mission/missionRuntime';
 import { applyConsequenceBundle } from '@/features/narrative/narrativeState';
-import { SaveService, createBrowserSaveAdapter } from '@/features/save/saveService';
+import {
+  canPurchaseFieldCapacitor,
+  purchaseFieldCapacitor,
+} from '@/features/progression/progressionState';
+import {
+  SaveService,
+  createBrowserSaveAdapter,
+  createInitialSave,
+} from '@/features/save/saveService';
 import { PixiRenderer } from '@/rendering/PixiRenderer';
 import type { EntitySnapshot, MissionDefinition, SaveGameRoot } from '@/types/contracts';
 import { HudView } from './hud';
@@ -26,6 +34,7 @@ import {
 import {
   getMissionPanelSummary,
   getContinuationMissionSummary,
+  getMissionBoardSummaries,
   selectCurrentMission,
   selectContinuationMission,
 } from './missionSelection';
@@ -53,7 +62,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
     );
   }
   const saveService = new SaveService(createBrowserSaveAdapter(), eventBus);
-  const saveGame = await saveService.loadOrCreate();
+  let saveGame = await saveService.loadOrCreate();
   const ship = content.ships.get(saveGame.game.player.shipId);
   const initialMission = selectCurrentMission(saveGame, content.missions);
 
@@ -67,7 +76,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
   const audio = new AudioDirector(eventBus);
 
   let missionDef = initialMission;
-  let combatState = createCombatState(content, ship, missionDef);
+  let combatState = createCombatState(content, ship, missionDef, saveGame.game.player);
   let missionRuntime = new MissionRuntime(missionDef, eventBus, {
     seed: saveGame.debug.campaignSeed,
   });
@@ -78,11 +87,13 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
     resolvedElapsedMs: 0,
   };
   let autoLaunchRemainingMs: number | undefined;
+  let isMissionBoardOpen = false;
+  let resetPromptOpen = false;
 
   const launchMission = (nextMission: MissionDefinition): void => {
     dialogue.destroy();
     missionDef = nextMission;
-    combatState = createCombatState(content, ship, missionDef);
+    combatState = createCombatState(content, ship, missionDef, saveGame.game.player);
     missionRuntime = new MissionRuntime(missionDef, eventBus, {
       seed: saveGame.debug.campaignSeed,
     });
@@ -96,7 +107,19 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
     missionRuntime.start();
   };
 
-  wireEventFeed(eventBus, eventFeed, saveGame, saveService);
+  const resetSlot = (): void => {
+    saveGame = createInitialSave(saveGame.meta.slotId);
+    resetPromptOpen = false;
+    isMissionBoardOpen = false;
+    const resetMission = selectCurrentMission(saveGame, content.missions);
+    if (!resetMission) {
+      throw new Error('Starter mission content is missing after slot reset.');
+    }
+    launchMission(resetMission);
+    void saveService.save(saveGame);
+  };
+
+  wireEventFeed(eventBus, eventFeed, () => saveGame, saveService);
   eventBus.subscribe('combat.entity_destroyed', (event) => missionRuntime.handleEvent(event));
   eventBus.subscribe('mission.choice_presented', () => {
     clearCombatProjectiles(combatState);
@@ -108,6 +131,10 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
       event.payload.missionId,
       event.payload.consequence,
       eventBus,
+      {
+        markCompleted:
+          event.payload.status === 'full_success' || event.payload.status === 'costly_success',
+      },
     );
     missionContinuationState = {
       resolvedElapsedMs: 0,
@@ -127,16 +154,56 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
         const player = combatState.registry.get(combatState.playerId);
         const command = input.getCommand(player?.transform.position ?? { x: 0, y: 0 });
         const missionSnapshot = missionRuntime.snapshot();
+        const missionBoard = getMissionBoardSummaries(saveGame, content.missions, missionDef);
         const choiceSelection = input.consumeChoiceSelection();
-        const continueMission =
-          missionSnapshot.phase === 'resolved' ? input.consumeContinueMission() : false;
+        const missionSelection = input.consumeMissionSelection();
+        const retryMission = input.consumeRetryMission();
+        const upgradePurchase = input.consumeUpgradePurchase();
+        const resetPrompt = input.consumeResetPrompt();
+        const resetConfirm = input.consumeResetConfirm();
+        if (input.consumeMissionBoardToggle()) {
+          isMissionBoardOpen = missionBoard.length > 1 ? !isMissionBoardOpen : false;
+        }
+        if (resetPrompt) {
+          resetPromptOpen = !resetPromptOpen;
+        }
+        if (resetPromptOpen && resetConfirm) {
+          resetSlot();
+          saveGame.meta.playtimeMs += deltaMs;
+          return;
+        }
+        if (
+          upgradePurchase &&
+          (missionSnapshot.phase === 'resolved' || missionSnapshot.phase === 'failed') &&
+          canPurchaseFieldCapacitor(saveGame.game.player)
+        ) {
+          purchaseFieldCapacitor(saveGame.game.player);
+          void saveService.save(saveGame);
+        }
+        if (missionSnapshot.phase === 'failed' && retryMission) {
+          launchMission(missionDef);
+          saveGame.meta.playtimeMs += deltaMs;
+          return;
+        }
+        if (!missionSnapshot.activeChoice && isMissionBoardOpen && missionSelection !== null) {
+          const selectedMission = missionBoard[missionSelection];
+          const mission = selectedMission ? content.missions.get(selectedMission.id) : undefined;
+          if (mission) {
+            isMissionBoardOpen = false;
+            launchMission(mission);
+            saveGame.meta.playtimeMs += deltaMs;
+            return;
+          }
+        }
+        const requestedContinue = input.consumeContinueMission();
+        const continueMission = missionSnapshot.phase === 'resolved' ? requestedContinue : false;
         const nextMission = selectContinuationMission(saveGame, content.missions, missionDef);
         const continuation = updateMissionContinuation({
           state: missionContinuationState,
           missionPhase: missionSnapshot.phase,
           deltaMs,
           requestedContinue: continueMission,
-          hasNextMission: Boolean(nextMission),
+          hasNextMission: Boolean(nextMission) && !isMissionBoardOpen,
         });
         missionContinuationState = continuation.state;
         autoLaunchRemainingMs = continuation.autoLaunchRemainingMs;
@@ -182,6 +249,10 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
           gameState: saveGame.game,
           dialogue: dialogue.snapshot(),
           nextMission: getContinuationMissionSummary(saveGame, content.missions, missionDef),
+          missionBoard: getMissionBoardSummaries(saveGame, content.missions, missionDef),
+          isMissionBoardOpen,
+          canPurchaseUpgrade: canPurchaseFieldCapacitor(saveGame.game.player),
+          resetPromptOpen,
           autoLaunchRemainingMs,
           feed: eventFeed,
         });
@@ -204,7 +275,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
 function wireEventFeed(
   eventBus: EventBus,
   eventFeed: string[],
-  saveGame: SaveGameRoot,
+  getSaveGame: () => SaveGameRoot,
   saveService: SaveService,
 ): void {
   const push = (message: string): void => {
@@ -234,14 +305,19 @@ function wireEventFeed(
   eventBus.subscribe('mission.resolved', (event) => {
     push(`Outcome: ${event.payload.status.replaceAll('_', ' ')}.`);
   });
+  eventBus.subscribe('inventory.reward_granted', (event) => {
+    push(`Reward: ${event.payload.salvage} salvage granted.`);
+  });
   eventBus.subscribe('sector.state_changed', (event) => {
     push(`Sector changed: ${event.payload.reason}`);
   });
   eventBus.subscribe('save.completed', () => {
+    const saveGame = getSaveGame();
     push(`Save updated for slot ${saveGame.meta.slotId}.`);
   });
 
   window.setInterval(() => {
+    const saveGame = getSaveGame();
     void saveService.save(saveGame);
   }, 30000);
 }

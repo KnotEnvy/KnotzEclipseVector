@@ -13,7 +13,13 @@ const MOVE_KEYS = {
 export class InputController {
   private readonly pressedKeys = new Set<string>();
   private queuedChoiceOption: 0 | 1 | null = null;
+  private queuedMissionSelection: number | null = null;
   private queuedContinueMission = false;
+  private queuedRetryMission = false;
+  private queuedMissionBoardToggle = false;
+  private queuedUpgradePurchase = false;
+  private queuedResetPrompt = false;
+  private queuedResetConfirm = false;
   private pointerWorld: Vector2 | null = null;
   private pointerDown = false;
 
@@ -65,6 +71,42 @@ export class InputController {
     return shouldContinue;
   }
 
+  consumeRetryMission(): boolean {
+    const shouldRetry = this.queuedRetryMission;
+    this.queuedRetryMission = false;
+    return shouldRetry;
+  }
+
+  consumeMissionSelection(): number | null {
+    const selection = this.queuedMissionSelection;
+    this.queuedMissionSelection = null;
+    return selection;
+  }
+
+  consumeMissionBoardToggle(): boolean {
+    const shouldToggle = this.queuedMissionBoardToggle;
+    this.queuedMissionBoardToggle = false;
+    return shouldToggle;
+  }
+
+  consumeUpgradePurchase(): boolean {
+    const shouldPurchase = this.queuedUpgradePurchase;
+    this.queuedUpgradePurchase = false;
+    return shouldPurchase;
+  }
+
+  consumeResetPrompt(): boolean {
+    const shouldPrompt = this.queuedResetPrompt;
+    this.queuedResetPrompt = false;
+    return shouldPrompt;
+  }
+
+  consumeResetConfirm(): boolean {
+    const shouldConfirm = this.queuedResetConfirm;
+    this.queuedResetConfirm = false;
+    return shouldConfirm;
+  }
+
   private isPressed(keys: Set<string>): boolean {
     for (const key of keys) {
       if (this.pressedKeys.has(key)) {
@@ -80,14 +122,48 @@ export class InputController {
 
     if (event.code === 'Digit1') {
       this.queuedChoiceOption = 0;
+      this.queuedMissionSelection = 0;
     }
 
     if (event.code === 'Digit2') {
       this.queuedChoiceOption = 1;
+      this.queuedMissionSelection = 1;
+    }
+
+    if (event.code === 'Digit3') {
+      this.queuedMissionSelection = 2;
+    }
+
+    if (event.code === 'Digit4') {
+      this.queuedMissionSelection = 3;
+    }
+
+    if (event.code === 'Digit5') {
+      this.queuedMissionSelection = 4;
     }
 
     if (event.code === 'Enter' || event.code === 'KeyN') {
       this.queuedContinueMission = true;
+    }
+
+    if (event.code === 'KeyR') {
+      this.queuedRetryMission = true;
+    }
+
+    if (event.code === 'KeyM') {
+      this.queuedMissionBoardToggle = true;
+    }
+
+    if (event.code === 'KeyU') {
+      this.queuedUpgradePurchase = true;
+    }
+
+    if (event.code === 'Delete') {
+      this.queuedResetPrompt = true;
+    }
+
+    if (event.code === 'KeyY') {
+      this.queuedResetConfirm = true;
     }
   };
 

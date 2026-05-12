@@ -42,7 +42,7 @@ export function validateContentRegistry(content: ContentRegistry): ContentValida
   }
 
   for (const enemy of content.enemyArchetypes.values()) {
-    validateEnemyArchetypeDefinition(enemy, issues);
+    validateEnemyArchetypeDefinition(enemy, content, issues);
   }
 
   for (const [factionKey, faction] of Object.entries(content.factions)) {
@@ -69,6 +69,7 @@ export function validateContentRegistry(content: ContentRegistry): ContentValida
 
 function validateEnemyArchetypeDefinition(
   enemy: EnemyArchetypeDefinition,
+  content: Pick<ContentRegistry, 'statusEffects'>,
   issues: ContentValidationIssue[],
 ): void {
   const path = `enemyArchetypes.${enemy.id}`;
@@ -84,6 +85,16 @@ function validateEnemyArchetypeDefinition(
   assertPositiveNumber(enemy.behavior.preferredRange, `${path}.behavior.preferredRange`, issues);
   assertPositiveNumber(enemy.behavior.fireRange, `${path}.behavior.fireRange`, issues);
   assertPositiveNumber(enemy.behavior.fireCooldownMs, `${path}.behavior.fireCooldownMs`, issues);
+  if (enemy.behavior.volleyCount !== undefined) {
+    assertPositiveInteger(enemy.behavior.volleyCount, `${path}.behavior.volleyCount`, issues);
+  }
+  if (enemy.behavior.volleySpreadDegrees !== undefined) {
+    assertNonNegativeNumber(
+      enemy.behavior.volleySpreadDegrees,
+      `${path}.behavior.volleySpreadDegrees`,
+      issues,
+    );
+  }
   assertPositiveNumber(enemy.behavior.projectileSpeed, `${path}.behavior.projectileSpeed`, issues);
   assertPositiveNumber(
     enemy.behavior.projectileLifetimeMs,
@@ -101,6 +112,28 @@ function validateEnemyArchetypeDefinition(
       path: `${path}.behavior.fireRange`,
       message: 'Enemy fire range should be at least the preferred range.',
     });
+  }
+
+  if (enemy.behavior.statusEffectId && !content.statusEffects.has(enemy.behavior.statusEffectId)) {
+    issues.push({
+      path: `${path}.behavior.statusEffectId`,
+      message: `Unknown status effect reference: ${enemy.behavior.statusEffectId}`,
+    });
+  }
+
+  if (enemy.behavior.statusEffectChance !== undefined) {
+    assertProbability(
+      enemy.behavior.statusEffectChance,
+      `${path}.behavior.statusEffectChance`,
+      issues,
+    );
+
+    if (!enemy.behavior.statusEffectId) {
+      issues.push({
+        path: `${path}.behavior.statusEffectChance`,
+        message: 'Status effect chance requires a status effect id.',
+      });
+    }
   }
 }
 

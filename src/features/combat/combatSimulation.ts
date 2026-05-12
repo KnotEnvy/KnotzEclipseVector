@@ -4,6 +4,7 @@ import type { ContentRegistry } from '@/data/registry';
 import type {
   EntitySnapshot,
   MissionDefinition,
+  PlayerProgressionState,
   PlayerShipDefinition,
   StatusEffectDefinition,
 } from '@/types/contracts';
@@ -28,9 +29,10 @@ export function createCombatState(
   content: ContentRegistry,
   playerShip: PlayerShipDefinition,
   mission: MissionDefinition,
+  progression?: PlayerProgressionState,
 ): CombatState {
   const registry = new EntityRegistry<CombatEntity>();
-  registry.add(createPlayerEntity(playerShip));
+  registry.add(createPlayerEntity(playerShip, progression));
   spawnMissionEncounters(registry, content, mission);
 
   if (!content.weapons.has(playerShip.slots.hardpoints[0])) {

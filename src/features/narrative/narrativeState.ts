@@ -9,10 +9,12 @@ export function applyConsequenceBundle(
   missionId: MissionId,
   consequence: ConsequenceBundle,
   eventBus?: EventBus,
+  options: { markCompleted?: boolean } = {},
 ): void {
   applyCampaignUnlocks(gameState, consequence);
 
-  if (gameState.campaign.completedMissions.includes(missionId)) {
+  const markCompleted = options.markCompleted ?? true;
+  if (markCompleted && gameState.campaign.completedMissions.includes(missionId)) {
     return;
   }
 
@@ -58,7 +60,9 @@ export function applyConsequenceBundle(
     );
   }
 
-  gameState.campaign.completedMissions.push(missionId);
+  if (markCompleted) {
+    gameState.campaign.completedMissions.push(missionId);
+  }
 }
 
 function applyCampaignUnlocks(gameState: GameState, consequence: ConsequenceBundle): void {

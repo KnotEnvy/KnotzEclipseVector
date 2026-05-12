@@ -7,6 +7,7 @@ const COLORS = {
   player: 0x7fe7ff,
   enemy: 0xff5d7a,
   projectile: 0xf7d06a,
+  enemyProjectile: 0xff6a9c,
   hazard: 0x9b7cff,
 };
 
@@ -20,7 +21,11 @@ export class PixiRenderer {
     graphic: Graphics;
     ageMs: number;
     lifetimeMs: number;
+    color: number;
+    secondaryColor: number;
+    radius: number;
   }> = [];
+  private readonly damageFlashes = new Map<string, number>();
   private readonly unsubscribe: Array<() => void> = [];
 
   constructor(
@@ -46,6 +51,17 @@ export class PixiRenderer {
       this.unsubscribe.push(
         eventBus.subscribe('combat.entity_destroyed', (event) => {
           this.spawnExplosion(event.payload.position.x, event.payload.position.y);
+        }),
+        eventBus.subscribe('combat.damage_applied', (event) => {
+          this.damageFlashes.set(event.payload.targetId, 160);
+          const target = this.entities.get(event.payload.targetId);
+          if (target) {
+            this.spawnImpact(
+              target.position.x,
+              target.position.y,
+              event.payload.shielded ? 0x7fe7ff : 0xff5d7a,
+            );
+          }
         }),
       );
     }
@@ -76,6 +92,23 @@ export class PixiRenderer {
       graphic,
       ageMs: 0,
       lifetimeMs: this.qualityTier === 'low' ? 360 : 560,
+      color: 0xf7d06a,
+      secondaryColor: 0x7fe7ff,
+      radius: 18,
+    });
+  }
+
+  private spawnImpact(x: number, y: number, color: number): void {
+    const graphic = new Graphics();
+    graphic.position.set(x, y);
+    this.effectLayer.addChild(graphic);
+    this.effects.push({
+      graphic,
+      ageMs: 0,
+      lifetimeMs: 220,
+      color,
+      secondaryColor: 0xffffff,
+      radius: 8,
     });
   }
 
@@ -84,14 +117,23 @@ export class PixiRenderer {
     for (const effect of this.effects) {
       effect.ageMs += deltaMs;
       const progress = Math.min(1, effect.ageMs / effect.lifetimeMs);
-      const radius = 18 + progress * (this.qualityTier === 'ultra' ? 72 : 48);
+      const radius = effect.radius + progress * (this.qualityTier === 'ultra' ? 72 : 48);
       const alpha = 1 - progress;
 
       effect.graphic.clear();
-      effect.graphic.lineStyle(3, 0xf7d06a, alpha);
+      effect.graphic.lineStyle(3, effect.color, alpha);
       effect.graphic.drawCircle(0, 0, radius);
-      effect.graphic.lineStyle(1, 0x7fe7ff, alpha * 0.7);
+      effect.graphic.lineStyle(1, effect.secondaryColor, alpha * 0.7);
       effect.graphic.drawCircle(0, 0, radius * 0.55);
+    }
+
+    for (const [id, remainingMs] of this.damageFlashes.entries()) {
+      const nextRemainingMs = remainingMs - deltaMs;
+      if (nextRemainingMs <= 0) {
+        this.damageFlashes.delete(id);
+      } else {
+        this.damageFlashes.set(id, nextRemainingMs);
+      }
     }
 
     for (let index = this.effects.length - 1; index >= 0; index -= 1) {
@@ -135,7 +177,12 @@ export class PixiRenderer {
       graphic.clear();
       graphic.position.set(entity.transform.position.x, entity.transform.position.y);
       graphic.rotation = entity.transform.rotation;
-      drawEntity(graphic, entity, mission.phase === 'resolved');
+      drawEntity(
+        graphic,
+        entity,
+        mission.phase === 'resolved' || mission.phase === 'failed',
+        this.damageFlashes.get(entity.id) ?? 0,
+      );
     }
   }
 
@@ -166,9 +213,18 @@ export class PixiRenderer {
   }
 }
 
-function drawEntity(graphic: Graphics, entity: EntitySnapshot, missionResolved: boolean): void {
+function drawEntity(
+  graphic: Graphics,
+  entity: EntitySnapshot,
+  missionResolved: boolean,
+  flashRemainingMs: number,
+): void {
   const alpha = missionResolved && entity.type === 'enemy' ? 0.35 : 1;
-  graphic.beginFill(COLORS[entity.type], alpha);
+  const fillColor =
+    entity.type === 'projectile' && entity.factionId !== 'player'
+      ? COLORS.enemyProjectile
+      : COLORS[entity.type];
+  graphic.beginFill(fillColor, alpha);
 
   if (entity.type === 'player') {
     graphic.drawPolygon([24, 0, -18, -14, -10, 0, -18, 14]);
@@ -188,11 +244,23 @@ function drawEntity(graphic: Graphics, entity: EntitySnapshot, missionResolved: 
     graphic.drawCircle(0, 0, entity.radius + 7);
   }
 
+  if (flashRemainingMs > 0 && entity.type !== 'projectile') {
+    graphic.lineStyle(3, entity.type === 'player' ? 0xff5d7a : 0xffffff, 0.8);
+    graphic.drawCircle(0, 0, entity.radius + 12);
+  }
+
   if (entity.statuses?.some((status) => status.statusId === 'ionized')) {
     graphic.lineStyle(2, 0x8df4ff, 0.82);
     graphic.moveTo(-entity.radius - 10, -entity.radius - 10);
     graphic.lineTo(entity.radius + 10, entity.radius + 10);
     graphic.moveTo(entity.radius + 10, -entity.radius - 10);
     graphic.lineTo(-entity.radius - 10, entity.radius + 10);
+  }
+
+  if (entity.statuses?.some((status) => status.statusId === 'veil_scar')) {
+    graphic.lineStyle(2, 0xbf7dff, 0.86);
+    graphic.drawCircle(0, 0, entity.radius + 13);
+    graphic.moveTo(-entity.radius - 8, 0);
+    graphic.lineTo(entity.radius + 8, 0);
   }
 }

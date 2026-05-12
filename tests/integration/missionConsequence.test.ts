@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '@/core/eventBus';
-import { ashwakeWakeMission, latticeRescueContractMission, starterMission } from '@/data/missions';
+import {
+  ashwakeWakeMission,
+  latticeRescueContractMission,
+  starterMission,
+  veilLancerInterceptMission,
+} from '@/data/missions';
 import { createNewGameState } from '@/game/createGameState';
 import { MissionRuntime } from '@/features/mission/missionRuntime';
 import { applyConsequenceBundle } from '@/features/narrative/narrativeState';
@@ -132,6 +137,81 @@ describe('mission consequence flow', () => {
     expect(gameState.world.sectors.freeport_lattice.security).toBe(1);
     expect(gameState.world.sectors.freeport_lattice.civilianStability).toBe(2);
     expect(gameState.player.salvage).toBe(70);
+    expect(gameState.campaign.availableMissions).toContain('veil_lancer_intercept_04');
+  });
+
+  it('resolves the lancer intercept with a status-pressure objective chain', () => {
+    const bus = new EventBus();
+    const gameState = createNewGameState();
+    gameState.campaign.availableMissions.push('veil_lancer_intercept_04');
+    const mission = new MissionRuntime(veilLancerInterceptMission, bus, { seed: 987 });
+
+    bus.subscribe('combat.entity_destroyed', (event) => mission.handleEvent(event));
+    bus.subscribe('mission.resolved', (event) => {
+      applyConsequenceBundle(gameState, event.payload.missionId, event.payload.consequence, bus);
+    });
+
+    mission.start();
+    for (const entityId of [
+      'enemy_fracture_lancer_01',
+      'enemy_fracture_scout_lancer_guard_01',
+      'enemy_fracture_scout_lancer_guard_02',
+    ]) {
+      bus.publish('combat.entity_destroyed', {
+        entityId,
+        entityType: 'enemy',
+        killerId: 'player',
+        factionId: 'fracture',
+        position: { x: 900, y: 360 },
+      });
+    }
+
+    expect(mission.snapshot().objectives[0]?.state).toBe('completed');
+    expect(mission.snapshot().objectives[1]?.state).toBe('active');
+
+    mission.tick(6000);
+    mission.dispatchCommand({
+      type: 'mission.choice.select',
+      choiceId: 'veil_lancer_intercept_priority',
+      optionId: 'capture_pursuit_telemetry',
+      source: 'test',
+    });
+
+    expect(mission.snapshot().phase).toBe('resolved');
+    expect(gameState.campaign.completedMissions).toContain('veil_lancer_intercept_04');
+    expect(gameState.story.flags['story.act1.lancer_intercept_complete']).toBe(true);
+    expect(gameState.story.flags['story.act1.captured_lancer_pursuit_telemetry']).toBe(true);
+    expect(gameState.player.salvage).toBe(165);
+    expect(gameState.player.unlocks).toContain('field_capacitor_blueprint');
+    expect(gameState.player.unlocks).toContain('lancer_pursuit_telemetry');
+  });
+
+  it('applies fail-forward fallout without marking the mission completed', () => {
+    const bus = new EventBus();
+    const gameState = createNewGameState();
+    const mission = new MissionRuntime(starterMission, bus, { seed: 321 });
+
+    bus.subscribe('combat.entity_destroyed', (event) => mission.handleEvent(event));
+    bus.subscribe('mission.resolved', (event) => {
+      applyConsequenceBundle(gameState, event.payload.missionId, event.payload.consequence, bus, {
+        markCompleted:
+          event.payload.status === 'full_success' || event.payload.status === 'costly_success',
+      });
+    });
+
+    mission.start();
+    bus.publish('combat.entity_destroyed', {
+      entityId: 'player',
+      entityType: 'player',
+      killerId: 'enemy_fracture_drone_01',
+      factionId: 'player',
+      position: { x: 240, y: 360 },
+    });
+
+    expect(mission.snapshot().phase).toBe('failed');
+    expect(mission.snapshot().outcome?.status).toBe('fail_forward');
+    expect(gameState.campaign.completedMissions).not.toContain('corridor_breach_01');
+    expect(gameState.story.counters['combat.prototype_failures']).toBe(1);
   });
 
   it('backfills campaign unlocks without replaying rewards for an already completed mission', () => {

@@ -84,5 +84,6 @@ describe('mission flow', () => {
       }),
     ).toBe(true);
     expect(shouldHoldCombatForMission({ phase: 'resolved' })).toBe(true);
+    expect(shouldHoldCombatForMission({ phase: 'failed' })).toBe(true);
   });
 });

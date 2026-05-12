@@ -10,6 +10,7 @@ import { resolveProjectileHits } from '@/features/combat/projectileSystem';
 import { applyStatusEffect, tickStatusEffects } from '@/features/combat/statusSystem';
 import { createPlayerEntity, spawnMissionEncounters } from '@/features/combat/spawnSystem';
 import { tryFirePrimaryWeapon } from '@/features/combat/weaponSystem';
+import { FIELD_CAPACITOR_UNLOCK } from '@/features/progression/progressionState';
 import type { StatusEffectDefinition } from '@/types/contracts';
 
 describe('combat systems', () => {
@@ -31,6 +32,26 @@ describe('combat systems', () => {
     expect(firstScout?.enemyBehavior?.moveSpeed).toBe(scoutArchetype?.behavior.moveSpeed);
     expect(secondScout?.transform.position).toEqual({ x: 1030, y: 470 });
     expect(registry.activeValues()).toHaveLength(2);
+  });
+
+  it('applies progression upgrades when spawning the player ship', () => {
+    const content = createContentRegistry();
+    const ship = content.ships.get('veilrunner_proto');
+    if (!ship) {
+      throw new Error('Missing starter ship');
+    }
+
+    const player = createPlayerEntity(ship, {
+      shipId: 'veilrunner_proto',
+      loadout: {
+        primaryWeaponId: 'pulse_lance_mk1',
+      },
+      salvage: 0,
+      unlocks: [FIELD_CAPACITOR_UNLOCK],
+    });
+
+    expect(player.resources?.maxShield).toBe(ship.stats.maxShield + 24);
+    expect(player.resources?.maxHull).toBe(ship.stats.maxHull + 8);
   });
 
   it('fires primary weapons through a projectile entity and resource costs', () => {
@@ -291,6 +312,41 @@ describe('combat systems', () => {
     expect(beforeExpiry[0].statuses?.[0].tags).toContain('control');
     expect(expired).toContain('enemy_test_target:ionized:player');
     expect(target.statuses).toEqual([]);
+  });
+
+  it('ticks veil scar hull pressure and can destroy its target', () => {
+    const content = createContentRegistry();
+    const bus = new EventBus();
+    const destroyed: string[] = [];
+    bus.subscribe('combat.entity_destroyed', (event) => {
+      destroyed.push(`${event.payload.entityType}:${event.payload.entityId}`);
+    });
+
+    const target = createTargetEntity();
+    target.resources!.hull = 2;
+    target.statuses = [
+      {
+        statusId: 'veil_scar',
+        sourceId: 'enemy_lancer',
+        stacks: 1,
+        remainingMs: 1000,
+        durationMs: 3600,
+        tickAccumulatorMs: 0,
+      },
+    ];
+    const state: CombatState = {
+      registry: new EntityRegistry<CombatEntity>(),
+      playerId: 'player',
+      elapsedMs: 0,
+      nextProjectileIndex: 0,
+    };
+    state.registry.add(target);
+
+    tickStatusEffects(state, content, bus, 900);
+
+    expect(target.resources?.hull).toBe(0);
+    expect(target.active).toBe(false);
+    expect(destroyed).toContain('enemy:enemy_test_target');
   });
 });
 

@@ -44,14 +44,19 @@ export type ActiveStatusEffect = {
 };
 
 export type EnemyBehaviorState = {
+  pattern?: 'pressure' | 'strafe';
   moveSpeed: number;
   preferredRange: number;
   fireRange: number;
   fireCooldownMs: number;
+  volleyCount?: number;
+  volleySpreadDegrees?: number;
   projectileSpeed: number;
   projectileLifetimeMs: number;
   projectileDamage: number;
   projectileDamageType: DamageType;
+  statusEffectId?: StatusEffectId;
+  statusEffectChance?: number;
 };
 
 export type CombatEntity = RuntimeEntity & {

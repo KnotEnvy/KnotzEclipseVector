@@ -152,14 +152,19 @@ export type EnemyArchetypeDefinition = {
     maxHeat: number;
   };
   behavior: {
+    pattern?: 'pressure' | 'strafe';
     moveSpeed: number;
     preferredRange: number;
     fireRange: number;
     fireCooldownMs: number;
+    volleyCount?: number;
+    volleySpreadDegrees?: number;
     projectileSpeed: number;
     projectileLifetimeMs: number;
     projectileDamage: number;
     projectileDamageType: DamageType;
+    statusEffectId?: StatusEffectId;
+    statusEffectChance?: number;
   };
   tags: string[];
 };

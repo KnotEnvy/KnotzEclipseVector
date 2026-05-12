@@ -43,5 +43,7 @@ export function updateMissionContinuation(input: {
 export function shouldHoldCombatForMission(
   mission: Pick<MissionSnapshot, 'phase' | 'activeChoice'>,
 ): boolean {
-  return mission.phase === 'resolved' || Boolean(mission.activeChoice);
+  return (
+    mission.phase === 'resolved' || mission.phase === 'failed' || Boolean(mission.activeChoice)
+  );
 }

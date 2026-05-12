@@ -1,6 +1,6 @@
 import type { EventBus } from '@/core/eventBus';
 import type { ContentRegistry } from '@/data/registry';
-import type { EntityId, StatusEffectDefinition } from '@/types/contracts';
+import type { EntityId, EntityType, StatusEffectDefinition } from '@/types/contracts';
 import { clamp } from '@/utils/math';
 import type { ActiveStatusEffect, CombatEntity, CombatState } from './combatTypes';
 
@@ -159,31 +159,100 @@ function tickStatusEffect(
   eventBus: EventBus,
   deltaMs: number,
 ): void {
-  if (!entity.resources || definition.id !== 'ionized' || !definition.tickRateMs) {
+  if (!entity.resources || !definition.tickRateMs) {
     return;
   }
 
   status.tickAccumulatorMs += deltaMs;
   while (status.tickAccumulatorMs >= definition.tickRateMs && status.remainingMs > 0) {
     status.tickAccumulatorMs -= definition.tickRateMs;
-    const beforeShield = entity.resources.shield;
-    entity.resources.shield = clamp(
-      entity.resources.shield - 1 * status.stacks,
-      0,
-      entity.resources.maxShield,
-    );
 
-    if (beforeShield !== entity.resources.shield) {
-      eventBus.publish('combat.damage_applied', {
-        targetId: entity.id,
-        sourceId: 'status_ionized',
-        amount: beforeShield - entity.resources.shield,
-        damageType: 'ion',
-        shielded: true,
-        crit: false,
-        remainingHull: entity.resources.hull,
-        remainingShield: entity.resources.shield,
-      });
+    if (definition.id === 'ionized') {
+      applyStatusShieldPressure(entity, status, eventBus);
     }
+
+    if (definition.id === 'veil_scar') {
+      applyStatusHullPressure(entity, status, eventBus);
+    }
+  }
+}
+
+function applyStatusShieldPressure(
+  entity: CombatEntity,
+  status: ActiveStatusEffect,
+  eventBus: EventBus,
+): void {
+  if (!entity.resources) {
+    return;
+  }
+
+  const beforeShield = entity.resources.shield;
+  entity.resources.shield = clamp(
+    entity.resources.shield - 1 * status.stacks,
+    0,
+    entity.resources.maxShield,
+  );
+
+  if (beforeShield !== entity.resources.shield) {
+    eventBus.publish('combat.damage_applied', {
+      targetId: entity.id,
+      sourceId: 'status_ionized',
+      amount: beforeShield - entity.resources.shield,
+      damageType: 'ion',
+      shielded: true,
+      crit: false,
+      remainingHull: entity.resources.hull,
+      remainingShield: entity.resources.shield,
+    });
+  }
+}
+
+function applyStatusHullPressure(
+  entity: CombatEntity,
+  status: ActiveStatusEffect,
+  eventBus: EventBus,
+): void {
+  if (!entity.resources) {
+    return;
+  }
+
+  const beforeHull = entity.resources.hull;
+  entity.resources.hull = clamp(
+    entity.resources.hull - 2 * status.stacks,
+    0,
+    entity.resources.maxHull,
+  );
+
+  if (beforeHull === entity.resources.hull) {
+    return;
+  }
+
+  const sourceId = status.sourceId ?? 'status_veil_scar';
+  eventBus.publish('combat.damage_applied', {
+    targetId: entity.id,
+    sourceId,
+    amount: beforeHull - entity.resources.hull,
+    damageType: 'veil',
+    shielded: false,
+    crit: false,
+    remainingHull: entity.resources.hull,
+    remainingShield: entity.resources.shield,
+  });
+
+  if (entity.resources.hull <= 0 && entity.active) {
+    entity.active = false;
+    eventBus.publish(
+      'combat.entity_destroyed',
+      {
+        entityId: entity.id,
+        entityType: entity.type as EntityType,
+        killerId: sourceId,
+        factionId: entity.factionId,
+        position: { ...entity.transform.position },
+      },
+      {
+        actorId: sourceId,
+      },
+    );
   }
 }

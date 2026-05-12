@@ -11,6 +11,10 @@ export type MissionPanelSummary = {
   objectiveTitles: Record<string, string>;
 };
 
+export type MissionBoardSummary = MissionPanelSummary & {
+  state: 'current' | 'available' | 'completed';
+};
+
 export function selectCurrentMission(
   saveGame: SaveGameRoot,
   missions: ReadonlyMap<string, MissionDefinition>,
@@ -85,6 +89,24 @@ export function getContinuationMissionSummary(
 ): MissionPanelSummary | undefined {
   const nextMission = selectContinuationMission(saveGame, missions, currentMission);
   return nextMission ? getMissionPanelSummary(nextMission) : undefined;
+}
+
+export function getMissionBoardSummaries(
+  saveGame: SaveGameRoot,
+  missions: ReadonlyMap<string, MissionDefinition>,
+  currentMission: MissionDefinition,
+): MissionBoardSummary[] {
+  return getAvailableMissionIds(saveGame, missions)
+    .map((missionId) => missions.get(missionId))
+    .filter((mission): mission is MissionDefinition => Boolean(mission))
+    .map((mission) => {
+      const isCurrent = mission.id === currentMission.id;
+      const isCompleted = saveGame.game.campaign.completedMissions.includes(mission.id);
+      return {
+        ...getMissionPanelSummary(mission),
+        state: isCurrent ? 'current' : isCompleted ? 'completed' : 'available',
+      };
+    });
 }
 
 function getAvailableMissionIds(

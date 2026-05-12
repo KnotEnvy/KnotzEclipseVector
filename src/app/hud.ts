@@ -1,5 +1,9 @@
 import type { DialogueSnapshot } from '@/features/dialogue/dialogueDirector';
-import type { MissionPanelSummary } from './missionSelection';
+import {
+  FIELD_CAPACITOR_COST,
+  FIELD_CAPACITOR_UNLOCK,
+} from '@/features/progression/progressionState';
+import type { MissionBoardSummary, MissionPanelSummary } from './missionSelection';
 import type { EntitySnapshot, GameState, MissionSnapshot } from '@/types/contracts';
 
 export class HudView {
@@ -12,6 +16,10 @@ export class HudView {
     gameState: GameState;
     dialogue: DialogueSnapshot;
     nextMission?: MissionPanelSummary;
+    missionBoard: MissionBoardSummary[];
+    isMissionBoardOpen: boolean;
+    canPurchaseUpgrade: boolean;
+    resetPromptOpen: boolean;
     autoLaunchRemainingMs?: number;
     feed: string[];
   }): void {
@@ -21,18 +29,26 @@ export class HudView {
       input.gameState.world.sectors.freeport_lattice;
     const freeports = input.gameState.world.factions.freeports;
 
+    const isLowShield =
+      player?.shield !== undefined &&
+      player?.maxShield !== undefined &&
+      player.maxShield > 0 &&
+      player.shield / player.maxShield <= 0.35;
+    const isFailed = input.mission.phase === 'failed';
+
     this.root.innerHTML = `
       <div class="hud__top">
-        <section class="hud-panel" aria-label="Player status">
+        <section class="hud-panel ${isLowShield ? 'hud-panel--danger' : ''}" aria-label="Player status">
           <h2>Prototype</h2>
           ${meter('Hull', player?.hull ?? 0, player?.maxHull ?? 1)}
           ${meter('Shield', player?.shield ?? 0, player?.maxShield ?? 1)}
           ${statusList(player)}
           ${fieldStatusList(input.entities)}
-          <div class="hud-help">WASD or arrows move. Mouse aims. Space or left mouse fires.</div>
+          ${isLowShield ? '<div class="hud-alert">Low shield. Break pressure or commit to the kill.</div>' : ''}
+          <div class="hud-help">WASD/arrows move. Mouse aims. Space/click fires. M mission board.</div>
         </section>
         <section class="hud-panel hud-mission" aria-label="Mission objectives">
-          <h2>${input.mission.phase === 'resolved' ? 'Mission Resolved' : input.currentMission.title}</h2>
+          <h2>${isFailed ? 'Mission Failed' : input.mission.phase === 'resolved' ? 'Mission Resolved' : input.currentMission.title}</h2>
           <p class="hud-briefing">${input.currentMission.briefing}</p>
           <ul class="hud-list">
             ${input.mission.objectives
@@ -61,25 +77,39 @@ export class HudView {
               : ''
           }
           ${
-            input.mission.phase === 'resolved'
+            input.mission.phase === 'resolved' || isFailed
               ? `<div class="hud-choice">
                   ${
-                    input.nextMission
-                      ? `<p>Next: ${input.nextMission.title} / ${sectorLabel(input.nextMission.sectorId)}</p>
+                    isFailed
+                      ? `<p>Prototype recovered with sector fallout. Press R to retry this mission.</p>
+                         <p>Open the mission board with M or reset the slot with Delete, then Y.</p>`
+                      : input.nextMission
+                        ? `<p>Next: ${input.nextMission.title} / ${sectorLabel(input.nextMission.sectorId)}</p>
                          <p>Reward: ${input.nextMission.salvage} salvage${
                            input.nextMission.unlocks.length > 0
                              ? ` + ${input.nextMission.unlocks.map(formatUnlockLabel).join(', ')}`
                              : ''
                          }</p>
                          <p>${formatAutoLaunch(input.autoLaunchRemainingMs)} Press Enter or N now.</p>`
-                      : '<p>No additional missions are currently unlocked.</p>'
+                        : '<p>No additional missions are currently unlocked.</p>'
                   }
                 </div>`
               : ''
           }
+          ${upgradePrompt(input.gameState, input.canPurchaseUpgrade)}
         </section>
       </div>
       <div class="hud__center">
+        ${
+          input.resetPromptOpen
+            ? `<section class="hud-panel hud-modal" aria-label="Reset slot confirmation">
+                <h2>Reset Slot</h2>
+                <p>Press Y to start a clean campaign slot. Press Delete again to cancel.</p>
+              </section>`
+            : input.isMissionBoardOpen
+              ? missionBoard(input.missionBoard)
+              : ''
+        }
         ${
           input.dialogue.currentLine
             ? `<section class="hud-panel hud-comms" aria-label="Mission comms">
@@ -137,6 +167,36 @@ function formatUnlockLabel(unlock: string): string {
     .split('_')
     .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
     .join(' ');
+}
+
+function upgradePrompt(gameState: GameState, canPurchaseUpgrade: boolean): string {
+  const hasUpgrade = gameState.player.unlocks.includes(FIELD_CAPACITOR_UNLOCK);
+  if (hasUpgrade) {
+    return '<div class="hud-upgrade">Field Capacitor installed: +24 shield, +8 hull.</div>';
+  }
+
+  if (!canPurchaseUpgrade) {
+    return '';
+  }
+
+  return `<div class="hud-upgrade">Press U to install Field Capacitor (${FIELD_CAPACITOR_COST} salvage): +24 shield, +8 hull.</div>`;
+}
+
+function missionBoard(missions: MissionBoardSummary[]): string {
+  return `
+    <section class="hud-panel hud-board" aria-label="Mission board">
+      <h2>Mission Board</h2>
+      <ul class="hud-list">
+        ${missions
+          .slice(0, 5)
+          .map(
+            (mission, index) =>
+              `<li>${index + 1}. ${mission.title} / ${sectorLabel(mission.sectorId)} / ${mission.state}</li>`,
+          )
+          .join('')}
+      </ul>
+    </section>
+  `;
 }
 
 function meter(label: string, value: number, max: number): string {

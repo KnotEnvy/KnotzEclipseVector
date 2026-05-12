@@ -131,6 +131,29 @@ export const starterMission: MissionDefinition = {
         },
       },
     },
+    {
+      when: 'fail_forward',
+      apply: {
+        narrative: {
+          incrementCounters: {
+            'combat.prototype_failures': 1,
+          },
+        },
+        faction: {
+          repDelta: {
+            freeports: -1,
+          },
+        },
+        sector: {
+          sectorId: 'freeport_lattice',
+          delta: {
+            civilianStability: -1,
+            localSentiment: -1,
+          },
+          reason: 'The prototype was forced out before the breach could be sealed.',
+        },
+      },
+    },
   ],
 };
 
@@ -263,6 +286,29 @@ export const ashwakeWakeMission: MissionDefinition = {
         },
         campaign: {
           unlockMissions: ['lattice_rescue_contract_03'],
+        },
+      },
+    },
+    {
+      when: 'fail_forward',
+      apply: {
+        narrative: {
+          incrementCounters: {
+            'combat.prototype_failures': 1,
+          },
+        },
+        faction: {
+          repDelta: {
+            ashwake: -1,
+          },
+        },
+        sector: {
+          sectorId: 'ashwake_cleft',
+          delta: {
+            anomalyIntensity: 1,
+            infrastructureDamage: 1,
+          },
+          reason: 'The Ashwake relay kept broadcasting after the prototype withdrew.',
         },
       },
     },
@@ -403,6 +449,205 @@ export const latticeRescueContractMission: MissionDefinition = {
           unlocks: ['contract_template_rescue_pressure_alpha'],
           idempotencyKey: 'lattice_rescue_contract_03_full_success_rewards',
         },
+        campaign: {
+          unlockMissions: ['veil_lancer_intercept_04'],
+        },
+      },
+    },
+    {
+      when: 'fail_forward',
+      apply: {
+        narrative: {
+          incrementCounters: {
+            'combat.prototype_failures': 1,
+          },
+        },
+        faction: {
+          repDelta: {
+            freeports: -2,
+          },
+        },
+        sector: {
+          sectorId: 'freeport_lattice',
+          delta: {
+            civilianStability: -1,
+            infrastructureDamage: 1,
+          },
+          reason: 'The rescue lane buckled after the prototype lost the field.',
+        },
+      },
+    },
+  ],
+};
+
+export const veilLancerInterceptMission: MissionDefinition = {
+  id: 'veil_lancer_intercept_04',
+  version: '1.0.0',
+  chapterId: 'act1',
+  sectorId: 'ashwake_cleft',
+  title: 'Veil Lancer Intercept',
+  briefing:
+    'A fracture lancer is skimming the Ashwake Cleft and tagging rescue traffic with Veil scars. Break its screen, survive the scar volley, then decide whether to spend the opening on repairs or pursuit telemetry.',
+  tags: ['alpha', 'enemy_variant', 'status_pressure', 'mission_four'],
+  objectives: [
+    {
+      id: 'destroy_lancer_screen',
+      kind: 'destroy',
+      title: 'Destroy the fracture lancer screen',
+      targetEntityType: 'enemy',
+      requiredCount: 3,
+    },
+    {
+      id: 'survive_scar_echo',
+      kind: 'survive',
+      title: 'Survive the Veil scar echo',
+      durationMs: 6000,
+    },
+    {
+      id: 'choose_intercept_priority',
+      kind: 'choice_gate',
+      title: 'Choose the intercept priority',
+      choiceId: 'veil_lancer_intercept_priority',
+      prompt:
+        'The lancer wake is unstable. Do you stabilize the damaged ships or burn the window for pursuit telemetry?',
+      options: [
+        {
+          id: 'stabilize_damaged_ships',
+          label: 'Stabilize damaged ships',
+          resultingFlags: ['story.act1.stabilized_lancer_wounded'],
+          consequence: {
+            narrative: {
+              setFlags: {
+                'story.act1.stabilized_lancer_wounded': true,
+              },
+            },
+            faction: {
+              repDelta: {
+                freeports: 4,
+                ashwake: 1,
+              },
+            },
+            sector: {
+              sectorId: 'ashwake_cleft',
+              delta: {
+                civilianStability: 2,
+                infrastructureDamage: -1,
+              },
+              reason: 'The prototype held position long enough to stabilize scarred convoy hulls.',
+            },
+          },
+        },
+        {
+          id: 'capture_pursuit_telemetry',
+          label: 'Capture pursuit telemetry',
+          resultingFlags: ['story.act1.captured_lancer_pursuit_telemetry'],
+          consequence: {
+            narrative: {
+              setFlags: {
+                'story.act1.captured_lancer_pursuit_telemetry': true,
+              },
+              incrementCounters: {
+                'research.veil_observations': 3,
+              },
+            },
+            faction: {
+              repDelta: {
+                ashwake: 5,
+                freeports: -1,
+              },
+            },
+            inventory: {
+              salvage: 45,
+              unlocks: ['lancer_pursuit_telemetry'],
+              idempotencyKey: 'veil_lancer_intercept_04_pursuit_telemetry',
+            },
+          },
+        },
+      ],
+    },
+  ],
+  encounterSequence: [
+    {
+      id: 'fracture_lancer_01',
+      kind: 'spawn_enemy',
+      archetypeId: 'fracture_lancer',
+      at: { x: 920, y: 250 },
+    },
+    {
+      id: 'fracture_scout_lancer_guard_01',
+      kind: 'spawn_enemy',
+      archetypeId: 'fracture_scout',
+      at: { x: 1030, y: 380 },
+    },
+    {
+      id: 'fracture_scout_lancer_guard_02',
+      kind: 'spawn_enemy',
+      archetypeId: 'fracture_scout',
+      at: { x: 900, y: 510 },
+    },
+  ],
+  rewards: {
+    salvage: 120,
+    unlocks: ['field_capacitor_blueprint'],
+    repeatable: false,
+  },
+  consequences: [
+    {
+      when: 'full_success',
+      apply: {
+        narrative: {
+          setFlags: {
+            'story.act1.lancer_intercept_complete': true,
+          },
+          incrementCounters: {
+            'combat.prototype_successes': 1,
+          },
+        },
+        faction: {
+          repDelta: {
+            ashwake: 4,
+            freeports: 2,
+          },
+        },
+        sector: {
+          sectorId: 'ashwake_cleft',
+          delta: {
+            security: 1,
+            anomalyIntensity: -2,
+            localSentiment: 1,
+          },
+          reason: 'The fracture lancer was driven off before its Veil scars could spread.',
+        },
+        inventory: {
+          salvage: 120,
+          unlocks: ['field_capacitor_blueprint'],
+          idempotencyKey: 'veil_lancer_intercept_04_full_success_rewards',
+        },
+      },
+    },
+    {
+      when: 'fail_forward',
+      apply: {
+        narrative: {
+          incrementCounters: {
+            'combat.prototype_failures': 1,
+            'hazards.veil_scar_incidents': 1,
+          },
+        },
+        faction: {
+          repDelta: {
+            ashwake: -2,
+          },
+        },
+        sector: {
+          sectorId: 'ashwake_cleft',
+          delta: {
+            anomalyIntensity: 2,
+            infrastructureDamage: 1,
+          },
+          reason:
+            'The fracture lancer marked the cleft before the prototype could finish the intercept.',
+        },
       },
     },
   ],
@@ -412,4 +657,5 @@ export const starterMissions: MissionDefinition[] = [
   starterMission,
   ashwakeWakeMission,
   latticeRescueContractMission,
+  veilLancerInterceptMission,
 ];

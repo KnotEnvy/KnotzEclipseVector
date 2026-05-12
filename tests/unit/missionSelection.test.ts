@@ -28,6 +28,7 @@ describe('mission selection', () => {
       'corridor_breach_01',
       'ashwake_wake_02',
       'lattice_rescue_contract_03',
+      'veil_lancer_intercept_04',
     );
 
     expect(selectNextUnlockedMission(save, content.missions)).toBeUndefined();
@@ -42,6 +43,7 @@ describe('mission selection', () => {
       'corridor_breach_01',
       'ashwake_wake_02',
       'lattice_rescue_contract_03',
+      'veil_lancer_intercept_04',
     );
     const replayedMission = content.missions.get('corridor_breach_01');
     if (!replayedMission) {
@@ -67,5 +69,18 @@ describe('mission selection', () => {
     );
     expect(getNextMissionSummary(save, content.missions)?.title).toBe('Lattice Rescue Contract');
     expect(getNextMissionSummary(save, content.missions)?.salvage).toBe(70);
+  });
+
+  it('routes the third mission into the lancer intercept when completed', () => {
+    const content = createContentRegistry();
+    const save = createInitialSave('A');
+    save.game.campaign.completedMissions.push(
+      'corridor_breach_01',
+      'ashwake_wake_02',
+      'lattice_rescue_contract_03',
+    );
+
+    expect(selectNextUnlockedMission(save, content.missions)?.id).toBe('veil_lancer_intercept_04');
+    expect(getNextMissionSummary(save, content.missions)?.salvage).toBe(120);
   });
 });

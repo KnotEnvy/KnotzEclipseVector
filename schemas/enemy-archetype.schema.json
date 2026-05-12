@@ -33,16 +33,21 @@
         "projectileDamageType"
       ],
       "properties": {
+        "pattern": { "enum": ["pressure", "strafe"] },
         "moveSpeed": { "type": "number", "exclusiveMinimum": 0 },
         "preferredRange": { "type": "number", "exclusiveMinimum": 0 },
         "fireRange": { "type": "number", "exclusiveMinimum": 0 },
         "fireCooldownMs": { "type": "number", "exclusiveMinimum": 0 },
+        "volleyCount": { "type": "integer", "exclusiveMinimum": 0 },
+        "volleySpreadDegrees": { "type": "number", "minimum": 0 },
         "projectileSpeed": { "type": "number", "exclusiveMinimum": 0 },
         "projectileLifetimeMs": { "type": "number", "exclusiveMinimum": 0 },
         "projectileDamage": { "type": "number", "exclusiveMinimum": 0 },
         "projectileDamageType": {
           "enum": ["kinetic", "energy", "plasma", "ion", "veil"]
-        }
+        },
+        "statusEffectId": { "$ref": "#/$defs/stableId" },
+        "statusEffectChance": { "type": "number", "minimum": 0, "maximum": 1 }
       },
       "additionalProperties": false
     },
