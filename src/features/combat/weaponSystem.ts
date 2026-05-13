@@ -1,5 +1,9 @@
 import type { WeaponDefinition } from '@/types/contracts';
 import { clamp, normalize } from '@/utils/math';
+import {
+  RESONANCE_INJECTOR_DAMAGE_BONUS,
+  RESONANCE_INJECTOR_UNLOCK,
+} from '@/features/progression/progressionState';
 import type { CombatEntity, CombatState, PlayerCommandState } from './combatTypes';
 
 export function tryFirePrimaryWeapon(
@@ -49,7 +53,9 @@ export function tryFirePrimaryWeapon(
     projectile: {
       sourceId: player.id,
       weaponId: weapon.id,
-      damage: weapon.damageProfile.amount,
+      damage:
+        weapon.damageProfile.amount +
+        (player.tags.includes(RESONANCE_INJECTOR_UNLOCK) ? RESONANCE_INJECTOR_DAMAGE_BONUS : 0),
       damageType: weapon.damageProfile.type,
       statusEffectId: weapon.statusEffectId,
       statusEffectChance: weapon.statusEffectChance ?? 0,

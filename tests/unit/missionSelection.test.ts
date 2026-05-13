@@ -29,6 +29,7 @@ describe('mission selection', () => {
       'ashwake_wake_02',
       'lattice_rescue_contract_03',
       'veil_lancer_intercept_04',
+      'anchor_fall_05',
     );
 
     expect(selectNextUnlockedMission(save, content.missions)).toBeUndefined();
@@ -44,6 +45,7 @@ describe('mission selection', () => {
       'ashwake_wake_02',
       'lattice_rescue_contract_03',
       'veil_lancer_intercept_04',
+      'anchor_fall_05',
     );
     const replayedMission = content.missions.get('corridor_breach_01');
     if (!replayedMission) {
@@ -82,5 +84,20 @@ describe('mission selection', () => {
 
     expect(selectNextUnlockedMission(save, content.missions)?.id).toBe('veil_lancer_intercept_04');
     expect(getNextMissionSummary(save, content.missions)?.salvage).toBe(120);
+  });
+
+  it('routes the lancer intercept into the demo capstone when completed', () => {
+    const content = createContentRegistry();
+    const save = createInitialSave('A');
+    save.game.campaign.completedMissions.push(
+      'corridor_breach_01',
+      'ashwake_wake_02',
+      'lattice_rescue_contract_03',
+      'veil_lancer_intercept_04',
+    );
+
+    expect(selectNextUnlockedMission(save, content.missions)?.id).toBe('anchor_fall_05');
+    expect(getNextMissionSummary(save, content.missions)?.title).toBe('Anchor Fall');
+    expect(getNextMissionSummary(save, content.missions)?.salvage).toBe(160);
   });
 });

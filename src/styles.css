@@ -72,11 +72,15 @@ button {
 .hud-panel {
   min-width: 220px;
   max-width: min(460px, calc(100vw - 32px));
-  border: 1px solid rgba(120, 232, 255, 0.24);
-  background: rgba(3, 9, 18, 0.72);
+  border: 1px solid rgba(120, 232, 255, 0.3);
+  background:
+    linear-gradient(135deg, rgba(8, 20, 36, 0.88), rgba(3, 9, 18, 0.72)),
+    radial-gradient(circle at 10% 0%, rgba(127, 231, 255, 0.12), transparent 36%);
   padding: 10px 12px;
   backdrop-filter: blur(8px);
-  box-shadow: 0 0 28px rgba(53, 194, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(238, 247, 255, 0.08),
+    0 0 28px rgba(53, 194, 255, 0.11);
 }
 
 .hud-panel--danger {
@@ -113,7 +117,8 @@ button {
   display: block;
   height: 100%;
   width: var(--value, 0%);
-  background: linear-gradient(90deg, #7fe7ff, #f7d06a);
+  background: linear-gradient(90deg, #7fe7ff, #f7d06a 70%, #ff6a9c);
+  box-shadow: 0 0 14px rgba(127, 231, 255, 0.5);
 }
 
 .hud-statuses {
@@ -216,11 +221,12 @@ button {
 
 .hud-choice {
   margin-top: 10px;
-  border-top: 1px solid rgba(120, 232, 255, 0.18);
+  border-top: 1px solid rgba(247, 208, 106, 0.28);
   padding-top: 8px;
   color: #eef7ff;
   font-size: 13px;
   line-height: 1.45;
+  text-shadow: 0 0 14px rgba(127, 231, 255, 0.18);
 }
 
 .hud-choice p {
@@ -230,6 +236,13 @@ button {
 .hud-board,
 .hud-modal {
   width: min(520px, calc(100vw - 32px));
+}
+
+.hud-board {
+  border-color: rgba(247, 208, 106, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 231, 163, 0.08),
+    0 0 38px rgba(247, 208, 106, 0.14);
 }
 
 .hud-modal {

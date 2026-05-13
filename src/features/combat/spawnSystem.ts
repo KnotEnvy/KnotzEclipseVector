@@ -5,6 +5,7 @@ import {
   FIELD_CAPACITOR_HULL_BONUS,
   FIELD_CAPACITOR_SHIELD_BONUS,
   FIELD_CAPACITOR_UNLOCK,
+  RESONANCE_INJECTOR_UNLOCK,
 } from '@/features/progression/progressionState';
 import type {
   MissionDefinition,
@@ -33,7 +34,13 @@ export function createPlayerEntity(
     velocity: { x: 0, y: 0 },
     radius: 20,
     active: true,
-    tags: ['player', 'ship'],
+    tags: [
+      'player',
+      'ship',
+      ...(progression?.unlocks.includes(RESONANCE_INJECTOR_UNLOCK)
+        ? [RESONANCE_INJECTOR_UNLOCK]
+        : []),
+    ],
     resources: {
       hull: maxHull,
       maxHull,

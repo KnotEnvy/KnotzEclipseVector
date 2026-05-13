@@ -623,6 +623,9 @@ export const veilLancerInterceptMission: MissionDefinition = {
           unlocks: ['field_capacitor_blueprint'],
           idempotencyKey: 'veil_lancer_intercept_04_full_success_rewards',
         },
+        campaign: {
+          unlockMissions: ['anchor_fall_05'],
+        },
       },
     },
     {
@@ -653,9 +656,205 @@ export const veilLancerInterceptMission: MissionDefinition = {
   ],
 };
 
+export const anchorFallMission: MissionDefinition = {
+  id: 'anchor_fall_05',
+  version: '1.0.0',
+  chapterId: 'act1',
+  sectorId: 'freeport_lattice',
+  title: 'Anchor Fall',
+  briefing:
+    'The lancer wake exposed a fracture anchor nested inside the Freeport Lattice. Break its guard, survive the anchor surge, then decide whether to lock the lanes down or weaponize the Veil readout.',
+  tags: ['demo', 'capstone', 'mini_boss', 'act_one'],
+  objectives: [
+    {
+      id: 'break_anchor_guard',
+      kind: 'destroy',
+      title: 'Break the fracture anchor guard',
+      targetEntityType: 'enemy',
+      requiredCount: 3,
+    },
+    {
+      id: 'survive_anchor_surge',
+      kind: 'survive',
+      title: 'Survive the anchor surge',
+      durationMs: 8000,
+    },
+    {
+      id: 'choose_anchor_doctrine',
+      kind: 'choice_gate',
+      title: 'Choose the Act I doctrine',
+      choiceId: 'anchor_fall_doctrine',
+      prompt:
+        'The anchor core is exposed. Do you seal the civilian lanes or capture the Veil lattice for Ashwake doctrine?',
+      options: [
+        {
+          id: 'seal_civilian_lanes',
+          label: 'Seal civilian lanes',
+          resultingFlags: ['story.act1.demo_ended_with_freeport_stability'],
+          consequence: {
+            narrative: {
+              setFlags: {
+                'story.act1.demo_ended_with_freeport_stability': true,
+              },
+              incrementCounters: {
+                'combat.prototype_successes': 1,
+              },
+            },
+            faction: {
+              repDelta: {
+                freeports: 7,
+                ashwake: -1,
+              },
+            },
+            sector: {
+              sectorId: 'freeport_lattice',
+              delta: {
+                security: 2,
+                civilianStability: 3,
+                anomalyIntensity: -2,
+                localSentiment: 2,
+              },
+              reason:
+                'The prototype collapsed the anchor around civilian lane locks, restoring visible Freeport stability.',
+            },
+          },
+        },
+        {
+          id: 'capture_veil_lattice',
+          label: 'Capture Veil lattice',
+          resultingFlags: ['story.act1.demo_ended_with_ashwake_lattice'],
+          consequence: {
+            narrative: {
+              setFlags: {
+                'story.act1.demo_ended_with_ashwake_lattice': true,
+              },
+              incrementCounters: {
+                'research.veil_observations': 5,
+                'combat.prototype_successes': 1,
+              },
+            },
+            faction: {
+              repDelta: {
+                ashwake: 7,
+                freeports: -2,
+              },
+            },
+            sector: {
+              sectorId: 'ashwake_cleft',
+              delta: {
+                security: 1,
+                anomalyIntensity: -2,
+                localSentiment: 2,
+              },
+              reason:
+                'Ashwake researchers captured a live anchor lattice and turned the surge into a doctrine map.',
+            },
+            inventory: {
+              salvage: 60,
+              unlocks: ['ashwake_anchor_lattice'],
+              idempotencyKey: 'anchor_fall_05_veil_lattice',
+            },
+          },
+        },
+      ],
+    },
+  ],
+  encounterSequence: [
+    {
+      id: 'fracture_anchor_core_01',
+      kind: 'spawn_enemy',
+      archetypeId: 'fracture_anchor',
+      at: { x: 1010, y: 360 },
+    },
+    {
+      id: 'fracture_lancer_anchor_guard_01',
+      kind: 'spawn_enemy',
+      archetypeId: 'fracture_lancer',
+      at: { x: 870, y: 245 },
+    },
+    {
+      id: 'fracture_scout_anchor_guard_01',
+      kind: 'spawn_enemy',
+      archetypeId: 'fracture_scout',
+      at: { x: 900, y: 500 },
+    },
+  ],
+  rewards: {
+    salvage: 160,
+    unlocks: ['resonance_injector_blueprint', 'act_one_demo_clear'],
+    repeatable: false,
+  },
+  consequences: [
+    {
+      when: 'full_success',
+      apply: {
+        narrative: {
+          setFlags: {
+            'story.act1.anchor_fall_complete': true,
+          },
+          incrementCounters: {
+            'combat.prototype_successes': 1,
+            'anchors.destroyed': 1,
+          },
+        },
+        faction: {
+          repDelta: {
+            freeports: 3,
+            ashwake: 3,
+          },
+        },
+        sector: {
+          sectorId: 'freeport_lattice',
+          delta: {
+            security: 2,
+            civilianStability: 1,
+            anomalyIntensity: -3,
+            infrastructureDamage: -1,
+          },
+          reason:
+            'The fracture anchor collapsed, leaving the lattice safer and the Veil visibly weaker.',
+        },
+        inventory: {
+          salvage: 160,
+          unlocks: ['resonance_injector_blueprint', 'act_one_demo_clear'],
+          idempotencyKey: 'anchor_fall_05_full_success_rewards',
+        },
+      },
+    },
+    {
+      when: 'fail_forward',
+      apply: {
+        narrative: {
+          incrementCounters: {
+            'combat.prototype_failures': 1,
+            'anchors.destabilized': 1,
+          },
+        },
+        faction: {
+          repDelta: {
+            freeports: -3,
+            ashwake: -1,
+          },
+        },
+        sector: {
+          sectorId: 'freeport_lattice',
+          delta: {
+            civilianStability: -2,
+            anomalyIntensity: 3,
+            infrastructureDamage: 2,
+          },
+          reason:
+            'The fracture anchor survived the sortie and pulsed through the civilian lane network.',
+        },
+      },
+    },
+  ],
+};
+
 export const starterMissions: MissionDefinition[] = [
   starterMission,
   ashwakeWakeMission,
   latticeRescueContractMission,
   veilLancerInterceptMission,
+  anchorFallMission,
 ];

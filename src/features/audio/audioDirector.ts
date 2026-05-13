@@ -8,14 +8,30 @@ export class AudioDirector {
     this.unsubscribe.push(
       eventBus.subscribe('combat.damage_applied', (event) => {
         if (event.payload.targetId === 'player') {
-          this.playTone(150, 0.04, 0.035);
+          this.playTone(event.payload.shielded ? 180 : 110, 0.05, 0.045);
+        } else {
+          this.playTone(event.payload.shielded ? 520 : 680, 0.025, 0.018);
         }
       }),
       eventBus.subscribe('combat.entity_destroyed', (event) => {
-        this.playTone(event.payload.entityType === 'player' ? 90 : 260, 0.08, 0.05);
+        this.playTone(event.payload.entityType === 'player' ? 80 : 240, 0.09, 0.055);
+        if (event.payload.entityType !== 'player') {
+          window.setTimeout(() => this.playTone(360, 0.06, 0.035), 55);
+        }
       }),
-      eventBus.subscribe('mission.resolved', () => {
-        this.playTone(420, 0.07, 0.04);
+      eventBus.subscribe('combat.status_applied', (event) => {
+        this.playTone(event.payload.statusId === 'veil_scar' ? 300 : 740, 0.045, 0.025);
+      }),
+      eventBus.subscribe('mission.choice_presented', () => {
+        this.playTone(560, 0.05, 0.03);
+      }),
+      eventBus.subscribe('mission.resolved', (event) => {
+        if (event.payload.status === 'full_success') {
+          this.playTone(420, 0.08, 0.04);
+          window.setTimeout(() => this.playTone(640, 0.1, 0.035), 85);
+        } else {
+          this.playTone(140, 0.12, 0.045);
+        }
       }),
     );
   }

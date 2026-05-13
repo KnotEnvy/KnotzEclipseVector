@@ -2,6 +2,10 @@ import type { DialogueSnapshot } from '@/features/dialogue/dialogueDirector';
 import {
   FIELD_CAPACITOR_COST,
   FIELD_CAPACITOR_UNLOCK,
+  RESONANCE_INJECTOR_COST,
+  RESONANCE_INJECTOR_DAMAGE_BONUS,
+  RESONANCE_INJECTOR_UNLOCK,
+  canPurchaseResonanceInjector,
 } from '@/features/progression/progressionState';
 import type { MissionBoardSummary, MissionPanelSummary } from './missionSelection';
 import type { EntitySnapshot, GameState, MissionSnapshot } from '@/types/contracts';
@@ -171,8 +175,20 @@ function formatUnlockLabel(unlock: string): string {
 
 function upgradePrompt(gameState: GameState, canPurchaseUpgrade: boolean): string {
   const hasUpgrade = gameState.player.unlocks.includes(FIELD_CAPACITOR_UNLOCK);
-  if (hasUpgrade) {
-    return '<div class="hud-upgrade">Field Capacitor installed: +24 shield, +8 hull.</div>';
+  const hasInjector = gameState.player.unlocks.includes(RESONANCE_INJECTOR_UNLOCK);
+  const installed = [
+    hasUpgrade ? 'Field Capacitor: +24 shield, +8 hull' : '',
+    hasInjector ? `Resonance Injector: +${RESONANCE_INJECTOR_DAMAGE_BONUS} pulse damage` : '',
+  ].filter(Boolean);
+
+  if (canPurchaseResonanceInjector(gameState.player)) {
+    return `<div class="hud-upgrade">Press U to install Resonance Injector (${RESONANCE_INJECTOR_COST} salvage): +${RESONANCE_INJECTOR_DAMAGE_BONUS} pulse damage.</div>${
+      installed.length > 0 ? `<div class="hud-upgrade">${installed.join(' / ')}</div>` : ''
+    }`;
+  }
+
+  if (installed.length > 0 && !canPurchaseUpgrade) {
+    return `<div class="hud-upgrade">${installed.join(' / ')}</div>`;
   }
 
   if (!canPurchaseUpgrade) {

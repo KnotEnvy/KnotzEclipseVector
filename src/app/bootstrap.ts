@@ -14,8 +14,8 @@ import { DialogueDirector } from '@/features/dialogue/dialogueDirector';
 import { MissionRuntime } from '@/features/mission/missionRuntime';
 import { applyConsequenceBundle } from '@/features/narrative/narrativeState';
 import {
-  canPurchaseFieldCapacitor,
-  purchaseFieldCapacitor,
+  canPurchaseAnyUpgrade,
+  purchaseNextAvailableUpgrade,
 } from '@/features/progression/progressionState';
 import {
   SaveService,
@@ -175,9 +175,9 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
         if (
           upgradePurchase &&
           (missionSnapshot.phase === 'resolved' || missionSnapshot.phase === 'failed') &&
-          canPurchaseFieldCapacitor(saveGame.game.player)
+          canPurchaseAnyUpgrade(saveGame.game.player)
         ) {
-          purchaseFieldCapacitor(saveGame.game.player);
+          purchaseNextAvailableUpgrade(saveGame.game.player);
           void saveService.save(saveGame);
         }
         if (missionSnapshot.phase === 'failed' && retryMission) {
@@ -251,7 +251,7 @@ export async function bootstrapGame(root: HTMLElement): Promise<void> {
           nextMission: getContinuationMissionSummary(saveGame, content.missions, missionDef),
           missionBoard: getMissionBoardSummaries(saveGame, content.missions, missionDef),
           isMissionBoardOpen,
-          canPurchaseUpgrade: canPurchaseFieldCapacitor(saveGame.game.player),
+          canPurchaseUpgrade: canPurchaseAnyUpgrade(saveGame.game.player),
           resetPromptOpen,
           autoLaunchRemainingMs,
           feed: eventFeed,
